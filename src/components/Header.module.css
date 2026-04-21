@@ -1,0 +1,36 @@
+.header {
+  height: var(--header-h);
+  background: var(--ink);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 16px;
+  position: relative;
+  z-index: 100;
+  border-bottom: 2px solid var(--cyan);
+  flex-shrink: 0;
+}
+
+.logo {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--white);
+  letter-spacing: -.5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.divider {
+  width: 1px;
+  height: 20px;
+  background: rgba(255,255,255,.15);
+}
+
+.eventName {
+  font-size: 13px;
+  color: rgba(255,255,255,.7);
+  font-weight: 500;
+}
+
+.spacer { flex: 1; }

@@ -1,0 +1,26 @@
+.wrap { flex: 1; position: relative; min-width: 0; }
+.map  { position: absolute; inset: 0; }
+
+.legend {
+  position: absolute;
+  bottom: 20px; left: 12px;
+  background: var(--ink);
+  border-radius: 8px;
+  padding: 8px 14px;
+  display: flex;
+  gap: 14px;
+  z-index: 10;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: rgba(255,255,255,.8);
+  font-weight: 600;
+}
+
+.dot { width: 10px; height: 10px; border-radius: 2px; }
+.before { background: var(--yellow); }
+.after  { background: var(--cyan); }
