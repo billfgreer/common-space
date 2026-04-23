@@ -1,6 +1,50 @@
 .wrap { flex: 1; position: relative; min-width: 0; }
 .map  { position: absolute; inset: 0; }
 
+/* Before / After layer toggles */
+.toggleBar {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  gap: 6px;
+  z-index: 10;
+}
+
+.toggleBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .4px;
+  padding: 7px 13px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 2px 8px rgba(0,0,0,.18);
+  transition: opacity .15s, filter .15s, transform .1s;
+}
+.toggleBtn:hover { transform: translateY(-1px); }
+.toggleBtn:active { transform: translateY(0); }
+
+.toggleBefore { background: rgba(232,184,32,.92); color: var(--ink); }
+.toggleAfter  { background: rgba(10,175,184,.92);  color: var(--ink); }
+
+.toggleOff {
+  opacity: 0.42;
+  filter: grayscale(0.5);
+}
+
+.toggleDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(0,0,0,.45);
+  flex-shrink: 0;
+}
+
 .legend {
   position: absolute;
   bottom: 20px; left: 12px;
