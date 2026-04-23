@@ -10,6 +10,7 @@ export default function Results({ event, onBack, onCompare }) {
   const [loading, setLoading]     = useState(true)
   const [hoveredId, setHoveredId] = useState(null)
   const [selected, setSelected]   = useState({ before: null, after: null })
+  const [previewItem, setPreviewItem] = useState(null)
   const abortRef = useRef(null)
 
   // Fetch items whenever the event changes
@@ -24,6 +25,7 @@ export default function Results({ event, onBack, onCompare }) {
     setItems([])
     setLoading(true)
     setSelected({ before: null, after: null })
+    setPreviewItem(null)
 
     streamEventItems(event.catalogUrl, {
       maxItems: 80,
@@ -42,6 +44,7 @@ export default function Results({ event, onBack, onCompare }) {
   }, [event?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSelect = useCallback((item, timing) => {
+    setPreviewItem(item)  // always show on map when clicked
     setSelected(prev => {
       // Toggle off if already selected in this slot
       if (prev[timing]?.id === item.id) return { ...prev, [timing]: null }
@@ -64,6 +67,7 @@ export default function Results({ event, onBack, onCompare }) {
           items={items}
           hoveredId={hoveredId}
           selectedItems={selected}
+          previewItem={previewItem}
         />
         <ResultsPanel
           items={items}

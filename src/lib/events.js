@@ -3,6 +3,7 @@
 // eventDate is the disaster date — items before it are BEFORE, after are AFTER.
 
 const BASE = 'https://maxar-opendata.s3.amazonaws.com/events'
+const SATELLOGIC = 'https://satellogic-earthview.s3.us-west-2.amazonaws.com/stac'
 
 export const EVENTS = [
   {
@@ -116,5 +117,52 @@ export const EVENTS = [
     catalogUrl: `${BASE}/Maui-Hawaii-fires-Aug-23/collection.json`,
     imageCount: 23,
     thumbGradient: 'linear-gradient(160deg,#4A7A9B,#2E6B8A,#8B9B7A,#A89B7A)',
+  },
+
+  // ── Satellogic EarthView open archive (1m GSD, CC-BY-4.0) ─────────────────
+  {
+    id: 'satellogic-northern-california-2022',
+    name: 'Northern California Archive',
+    location: 'Sierra Nevada, California',
+    eventDate: null,
+    type: 'Archive',
+    emoji: '🛰',
+    center: [-119.34, 40.64],
+    zoom: 10,
+    bbox: [-121, 39, -117, 42],
+    catalogUrl: `${SATELLOGIC}/2022/2022-08/catalog.json`,
+    imageCount: 80,
+    source: 'satellogic',
+    thumbGradient: 'linear-gradient(145deg,#3A6B4A,#5A8B6A,#7AAB8A,#4A7A6A)',
+  },
+  {
+    id: 'satellogic-southern-california-2022',
+    name: 'Southern California Archive',
+    location: 'Los Angeles / San Diego, California',
+    eventDate: null,
+    type: 'Archive',
+    emoji: '🛰',
+    center: [-118.31, 33.53],
+    zoom: 10,
+    bbox: [-119.5, 32.5, -117, 34.5],
+    catalogUrl: `${SATELLOGIC}/2022/2022-09/catalog.json`,
+    imageCount: 80,
+    source: 'satellogic',
+    thumbGradient: 'linear-gradient(155deg,#8B7A5A,#A08A6A,#C0AA8A,#6A7A8A)',
+  },
+  {
+    id: 'satellogic-pacific-northwest-2022',
+    name: 'Pacific Northwest Archive',
+    location: 'Washington / Oregon',
+    eventDate: null,
+    type: 'Archive',
+    emoji: '🛰',
+    center: [-123.52, 48.29],
+    zoom: 9,
+    bbox: [-125, 46, -121, 50],
+    catalogUrl: `${SATELLOGIC}/2022/2022-10/catalog.json`,
+    imageCount: 80,
+    source: 'satellogic',
+    thumbGradient: 'linear-gradient(140deg,#2A5A4A,#3A7A6A,#5A9A8A,#4A6A5A)',
   },
 ]

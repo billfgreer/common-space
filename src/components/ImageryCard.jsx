@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { cogThumbnailTileUrl } from '../lib/titiler.js'
 import styles from './ImageryCard.module.css'
 
@@ -22,22 +23,92 @@ function formatDate(date) {
 }
 
 function formatPlatform(platform) {
-  // Clean up long platform strings
   return platform.replace('worldview-', 'WV-').replace('WorldView-', 'WV-')
+}
+
+function MetaModal({ item, onClose }) {
+  const raw = item.raw || {}
+  const props = raw.properties || {}
+  const assets = raw.assets || {}
+
+  const rows = [
+    ['ID', item.id],
+    ['Date', item.datetime?.toISOString()],
+    ['Platform', props.platform],
+    ['Instrument', props.instruments?.join(', ')],
+    ['Cloud Cover', item.cloudCover != null ? `${item.cloudCover}%` : null],
+    ['GSD', item.gsd ? `${item.gsd} m` : null],
+    ['BBox', item.bbox?.map(n => n.toFixed(5)).join(', ')],
+    ['Collection', raw.collection],
+    ['Processing level', props['processing:level']],
+    ['Off-nadir', props['view:off_nadir'] != null ? `${props['view:off_nadir']}°` : null],
+    ['Sun elevation', props['view:sun_elevation'] != null ? `${props['view:sun_elevation']}°` : null],
+    ['Sun azimuth', props['view:sun_azimuth'] != null ? `${props['view:sun_azimuth']}°` : null],
+  ].filter(([, v]) => v != null && v !== '')
+
+  const assetRows = Object.entries(assets)
+
+  return createPortal(
+    <div className={styles.modalOverlay} onClick={onClose}>
+      <div className={styles.modal} onClick={e => e.stopPropagation()}>
+        <div className={styles.modalHeader}>
+          <span className={styles.modalTitle}>STAC Metadata</span>
+          <button className={styles.modalClose} onClick={onClose}>✕</button>
+        </div>
+        <div className={styles.modalBody}>
+          <table className={styles.metaTable}>
+            <tbody>
+              {rows.map(([k, v]) => (
+                <tr key={k}>
+                  <td className={styles.metaKey}>{k}</td>
+                  <td className={styles.metaVal}>{String(v)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {assetRows.length > 0 && (
+            <>
+              <div className={styles.metaSectionLabel}>Assets</div>
+              <table className={styles.metaTable}>
+                <tbody>
+                  {assetRows.map(([k, asset]) => (
+                    <tr key={k}>
+                      <td className={styles.metaKey}>{k}</td>
+                      <td className={styles.metaVal}>
+                        {asset.href?.startsWith('http') || asset.href?.startsWith('s3://')
+                          ? <a href={asset.href} target="_blank" rel="noreferrer" style={{color:'var(--cyan)'}}>{asset.href}</a>
+                          : asset.href || '—'}
+                        {asset.type && <span style={{color:'var(--ink-soft)',marginLeft:6}}>{asset.type}</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
+
+          <div className={styles.metaSectionLabel}>Raw JSON</div>
+          <pre className={styles.rawJson}>{JSON.stringify(raw, null, 2)}</pre>
+        </div>
+      </div>
+    </div>,
+    document.body
+  )
 }
 
 export default function ImageryCard({
   item,
-  timing,          // 'before' | 'after'
-  selected,        // false | 'before' | 'after'
+  timing,           // 'before' | 'after'
+  selected,         // false | 'before' | 'after'
   overlapsSelected, // true | false | null
   onSelect,
   onMouseEnter,
   onMouseLeave,
-  eventName,
 }) {
   const initSource = item.thumbnailUrl ? 'thumbnail' : item.cogUrl ? 'cog' : 'none'
   const [thumbSource, setThumbSource] = useState(initSource)
+  const [showMeta, setShowMeta] = useState(false)
 
   const thumbSrc = thumbSource === 'thumbnail' ? item.thumbnailUrl
                  : thumbSource === 'cog'       ? cogThumbnailTileUrl(item.cogUrl, item.bbox)
@@ -60,60 +131,71 @@ export default function ImageryCard({
   }
 
   return (
-    <div
-      className={cardClass}
-      onClick={() => onSelect(item, timing)}
-      onMouseEnter={() => onMouseEnter?.(item)}
-      onMouseLeave={() => onMouseLeave?.()}
-    >
-      {/* Thumbnail */}
-      <div className={styles.thumb}>
-        {thumbSrc ? (
-          <img
-            src={thumbSrc}
-            alt={`${timing} imagery`}
-            className={styles.thumbImg}
-            onError={handleThumbError}
-          />
-        ) : (
-          <div className={styles.thumbPlaceholder} />
-        )}
-        <span className={`${styles.badge} ${timing === 'before' ? styles.badgeBefore : styles.badgeAfter}`}>
-          {timing}
-        </span>
-      </div>
-
-      {/* Body */}
-      <div className={styles.body}>
-        <div className={styles.top}>
-          <div>
-            <div className={styles.date}>{formatDate(item.datetime)}</div>
-            <div className={styles.platform}>{formatPlatform(item.platform)}</div>
-          </div>
-          {item.cloudCover !== null && (
-            <div className={styles.cloud}>
-              <CloudIcon />
-              {Math.round(item.cloudCover)}%
-            </div>
+    <>
+      <div
+        className={cardClass}
+        onClick={() => onSelect(item, timing)}
+        onMouseEnter={() => onMouseEnter?.(item)}
+        onMouseLeave={() => onMouseLeave?.()}
+      >
+        {/* Thumbnail */}
+        <div className={styles.thumb}>
+          {thumbSrc ? (
+            <img
+              src={thumbSrc}
+              alt={`${timing} imagery`}
+              className={styles.thumbImg}
+              onError={handleThumbError}
+            />
+          ) : (
+            <div className={styles.thumbPlaceholder} />
           )}
+          <span className={`${styles.badge} ${timing === 'before' ? styles.badgeBefore : styles.badgeAfter}`}>
+            {timing}
+          </span>
         </div>
 
-        <div className={styles.actions}>
-          <button
-            className={styles.actionDownload}
-            onClick={handleDownload}
-            title="Download COG asset"
-          >
-            <DownloadIcon /> Download
-          </button>
-          <button
-            className={`${styles.actionCompare} ${selected ? styles.actionCompareActive : ''}`}
-            onClick={e => { e.stopPropagation(); onSelect(item, timing) }}
-          >
-            {selected ? '✓ Selected' : overlapsSelected === true ? '✓ Same area' : 'Compare'}
-          </button>
+        {/* Body */}
+        <div className={styles.body}>
+          <div className={styles.top}>
+            <div>
+              <div className={styles.date}>{formatDate(item.datetime)}</div>
+              <div className={styles.platform}>{formatPlatform(item.platform)}</div>
+            </div>
+            {item.cloudCover !== null && (
+              <div className={styles.cloud}>
+                <CloudIcon />
+                {Math.round(item.cloudCover)}%
+              </div>
+            )}
+          </div>
+
+          <div className={styles.actions}>
+            <button
+              className={styles.actionDownload}
+              onClick={handleDownload}
+              title="Download COG asset"
+            >
+              <DownloadIcon /> Download
+            </button>
+            <button
+              className={`${styles.actionCompare} ${selected ? styles.actionCompareActive : ''}`}
+              onClick={e => { e.stopPropagation(); onSelect(item, timing) }}
+            >
+              {selected ? '✓ Selected' : overlapsSelected === true ? '✓ Same area' : 'Compare'}
+            </button>
+            <button
+              className={`${styles.actionDownload} ${styles.actionInfo}`}
+              onClick={e => { e.stopPropagation(); setShowMeta(true) }}
+              title="View STAC metadata"
+            >
+              Info
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+
+      {showMeta && <MetaModal item={item} onClose={() => setShowMeta(false)} />}
+    </>
   )
 }

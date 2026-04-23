@@ -34,7 +34,7 @@ export default function ResultsPanel({
   onHoverLeave,
   onCompare,
 }) {
-  const [sort, setSort]     = useState('date-desc')
+  const [sort, setSort]     = useState('date-asc')
   const [filter, setFilter] = useState('all')  // all | before | after
 
   // Decorate items with timing based on event date
@@ -64,17 +64,22 @@ export default function ResultsPanel({
     return sorted.filter(i => i.timing === filter)
   }, [sorted, filter])
 
-  // Sort opposite-timing items by proximity to the selected item
   const beforeItemsRaw = filtered.filter(i => i.timing === 'before')
   const afterItemsRaw  = filtered.filter(i => i.timing === 'after')
 
-  const beforeItems = selectedItems.after
-    ? [...beforeItemsRaw].sort((a, b) => bboxDistance(a.bbox, selectedItems.after.bbox) - bboxDistance(b.bbox, selectedItems.after.bbox))
-    : beforeItemsRaw
+  // When an item is selected on one side, filter the other side to overlapping images only
+  // Fall back to all images if nothing overlaps
+  const beforeItems = useMemo(() => {
+    if (!selectedItems.after) return beforeItemsRaw
+    const overlapping = beforeItemsRaw.filter(i => bboxOverlaps(i.bbox, selectedItems.after.bbox))
+    return overlapping.length ? overlapping : beforeItemsRaw
+  }, [beforeItemsRaw, selectedItems.after])
 
-  const afterItems = selectedItems.before
-    ? [...afterItemsRaw].sort((a, b) => bboxDistance(a.bbox, selectedItems.before.bbox) - bboxDistance(b.bbox, selectedItems.before.bbox))
-    : afterItemsRaw
+  const afterItems = useMemo(() => {
+    if (!selectedItems.before) return afterItemsRaw
+    const overlapping = afterItemsRaw.filter(i => bboxOverlaps(i.bbox, selectedItems.before.bbox))
+    return overlapping.length ? overlapping : afterItemsRaw
+  }, [afterItemsRaw, selectedItems.before])
 
   const canCompare = selectedItems.before && selectedItems.after
 

@@ -49,7 +49,13 @@ function normaliseItem(item, itemUrl) {
     bbox: item.bbox || null,
     geometry: item.geometry || null,
     cogUrl: resolve(cogHref),
-    thumbnailUrl: resolve(item.assets?.thumbnail?.href || item.assets?.overview?.href || null),
+    // Check preview (Satellogic) as an additional thumbnail fallback
+    thumbnailUrl: resolve(
+      item.assets?.thumbnail?.href ||
+      item.assets?.overview?.href ||
+      item.assets?.preview?.href ||
+      null
+    ),
     raw: item,
   }
 }
@@ -184,7 +190,9 @@ async function streamMaxarStyle(rootNode, catalogUrl, maxItems, eventDate, onIte
   )
 }
 
-// Generic single-pass walk for simpler catalog structures
+// Generic single-pass walk for simpler catalog structures.
+// Uses sequential child traversal to avoid request explosions on deep catalogs
+// (e.g. Satellogic: month → 31 days → N items/day).
 async function walkSimple(url, maxItems, onItem, signal) {
   let found = 0
 
@@ -210,18 +218,25 @@ async function walkSimple(url, maxItems, onItem, signal) {
     const childLinks = links.filter(l => l.rel === 'child')
 
     if (itemLinks.length) {
-      await Promise.allSettled(itemLinks.slice(0, maxItems - found).map(l => {
+      // Take one item per catalog node to spread coverage, then move on
+      const take = Math.min(3, maxItems - found, itemLinks.length)
+      const sampled = evenSample(itemLinks, take)
+      for (const l of sampled) {
+        if (found >= maxItems || signal?.aborted) return
         const h = resolveHref(nodeBase, l.href)
-        return h ? walk(h, depth + 1) : Promise.resolve()
-      }))
+        if (h) await walk(h, depth + 1)
+      }
       return
     }
     if (childLinks.length) {
-      const limit = depth === 0 ? 12 : 4
-      await Promise.allSettled(childLinks.slice(0, limit).map(l => {
+      // Sample children evenly so we get geographic/temporal spread
+      const limit = depth === 0 ? 20 : depth === 1 ? 8 : 4
+      const sampled = evenSample(childLinks, Math.min(limit, childLinks.length))
+      for (const l of sampled) {
+        if (found >= maxItems || signal?.aborted) return
         const h = resolveHref(nodeBase, l.href)
-        return h ? walk(h, depth + 1) : Promise.resolve()
-      }))
+        if (h) await walk(h, depth + 1)
+      }
     }
   }
 
@@ -244,9 +259,12 @@ export async function streamEventItems(catalogUrl, { maxItems = 40, eventDate, o
 
   const childLinks = (root.links || []).filter(l => l.rel === 'child')
 
-  // Use two-pass strategy when there are many acquisition sub-collections
-  // (characteristic of Maxar Open Data style catalogs)
-  if (childLinks.length > 5) {
+  // Detect Maxar-style catalogs by checking if child hrefs contain ARD grid-cell patterns
+  // (e.g. ./ard/37/QUADKEY/YYYY-MM-DD/collection.json)
+  const isMaxarStyle = childLinks.length > 5 &&
+    childLinks.some(l => l.href && /\/ard\/\d+\/[^/]+\/\d{4}-\d{2}-\d{2}\//.test(l.href))
+
+  if (isMaxarStyle) {
     await streamMaxarStyle(root, catalogUrl, maxItems, splitDate, taggedOnItem, signal)
   } else {
     await walkSimple(catalogUrl, maxItems, taggedOnItem, signal)

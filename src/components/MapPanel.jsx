@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
+import { cogTileUrl } from '../lib/titiler.js'
 import styles from './MapPanel.module.css'
 
 const SOURCE_ID = 'footprints'
@@ -18,7 +19,7 @@ function buildGeoJSON(items) {
   }
 }
 
-export default function MapPanel({ event, items, hoveredId, selectedItems }) {
+export default function MapPanel({ event, items, hoveredId, selectedItems, previewItem }) {
   const containerRef = useRef(null)
   const mapRef       = useRef(null)
   const initialised  = useRef(false)
@@ -30,7 +31,7 @@ export default function MapPanel({ event, items, hoveredId, selectedItems }) {
 
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: 'https://demotiles.maplibre.org/style.json',
+      style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
       center: event?.center || [0, 20],
       zoom:   event?.zoom   || 3,
     })
@@ -112,6 +113,43 @@ export default function MapPanel({ event, items, hoveredId, selectedItems }) {
       .map(i => i.id)
     map.setFilter('fp-selected', ids.length ? ['in', ['get', 'id'], ['literal', ids]] : ['==', 'id', ''])
   }, [selectedItems])
+
+  // Show COG preview tile when an item is clicked and zoom to its bbox
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    const apply = () => {
+      // Remove any previous preview
+      try { if (map.getLayer('preview-layer')) map.removeLayer('preview-layer') } catch {}
+      try { if (map.getSource('preview-cog'))  map.removeSource('preview-cog')  } catch {}
+
+      // Always zoom to the item bbox first
+      if (previewItem?.bbox?.length === 4) {
+        const [minX, minY, maxX, maxY] = previewItem.bbox
+        map.fitBounds([[minX, minY], [maxX, maxY]], { padding: 60, duration: 800, maxZoom: 16 })
+      }
+
+      if (!previewItem?.cogUrl) return
+
+      // Add raster tile layer — insert before footprint layers if they exist
+      try {
+        map.addSource('preview-cog', {
+          type: 'raster',
+          tiles: [cogTileUrl(previewItem.cogUrl)],
+          tileSize: 256,
+        })
+        const before = map.getLayer('fp-fill') ? 'fp-fill' : undefined
+        map.addLayer({
+          id: 'preview-layer', type: 'raster', source: 'preview-cog',
+          paint: { 'raster-opacity': 0.95 },
+        }, before)
+      } catch (e) {
+        console.warn('preview layer error:', e)
+      }
+    }
+    if (map.isStyleLoaded()) apply()
+    else { map.once('load', apply); return () => map.off('load', apply) }
+  }, [previewItem])
 
   // Fly to event when it changes (wait for style to be ready)
   useEffect(() => {
