@@ -102,6 +102,7 @@ export default function ImageryCard({
   timing,           // 'before' | 'after'
   selected,         // false | 'before' | 'after'
   overlapsSelected, // true | false | null
+  isBestPair,       // true | undefined
   onSelect,
   onMouseEnter,
   onMouseLeave,
@@ -123,6 +124,7 @@ export default function ImageryCard({
     styles.card,
     selected === 'before' ? styles.selectedBefore : '',
     selected === 'after'  ? styles.selectedAfter  : '',
+    isBestPair && !selected ? styles.bestPairCard : '',
   ].filter(Boolean).join(' ')
 
   function handleDownload(e) {

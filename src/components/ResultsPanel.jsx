@@ -7,17 +7,6 @@ function bboxOverlaps(a, b) {
   return a[0] < b[2] && a[2] > b[0] && a[1] < b[3] && a[3] > b[1]
 }
 
-function bboxCenter(bbox) {
-  return [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2]
-}
-
-function bboxDistance(a, b) {
-  if (!a || !b) return Infinity
-  const [ax, ay] = bboxCenter(a)
-  const [bx, by] = bboxCenter(b)
-  return Math.sqrt((ax - bx) ** 2 + (ay - by) ** 2)
-}
-
 const SORT_OPTIONS = [
   { value: 'date-desc', label: 'Newest first' },
   { value: 'date-asc',  label: 'Oldest first' },
@@ -50,6 +39,35 @@ export default function ResultsPanel({
         : 'after',
     }))
   }, [items, event])
+
+  // All before/after items (pre-sort/filter) used for best pair computation
+  const allBefore = useMemo(() => decorated.filter(i => i.timing === 'before'), [decorated])
+  const allAfter  = useMemo(() => decorated.filter(i => i.timing === 'after'),  [decorated])
+
+  // Best pair: score by proximity to event date + low cloud cover, require bbox overlap
+  const bestPair = useMemo(() => {
+    if (!allBefore.length || !allAfter.length) return null
+    const eventMs = event?.eventDate ? new Date(event.eventDate).getTime() : null
+
+    function score(item) {
+      let s = 100 - (item.cloudCover ?? 50)           // cloud bonus 0–100
+      if (eventMs && item.datetime) {
+        const days = Math.abs(item.datetime.getTime() - eventMs) / 86400000
+        s += Math.max(0, 200 - days)                   // proximity bonus 0–200
+      }
+      return s
+    }
+
+    const topBefore = [...allBefore].sort((a, b) => score(b) - score(a)).slice(0, 10)
+    const topAfter  = [...allAfter].sort((a, b)  => score(b) - score(a)).slice(0, 10)
+
+    for (const b of topBefore) {
+      for (const a of topAfter) {
+        if (bboxOverlaps(b.bbox, a.bbox)) return { before: b, after: a }
+      }
+    }
+    return { before: topBefore[0], after: topAfter[0] }  // fallback: no overlap
+  }, [allBefore, allAfter, event])
 
   const sorted = useMemo(() => {
     const copy = [...decorated]
@@ -166,7 +184,37 @@ export default function ResultsPanel({
         {beforeItems.length > 0 && (
           <>
             <div className={styles.groupLabel}>Before — {event?.eventDate}</div>
-            {beforeItems.map(item => (
+
+            {/* Best pair pin */}
+            {bestPair?.before && (
+              <>
+                <div className={styles.bestPairHeader}>
+                  <span className={styles.bestPairLabel}>★ Best Match</span>
+                  <button
+                    className={styles.selectPairBtn}
+                    onClick={() => { onSelect(bestPair.before, 'before'); onSelect(bestPair.after, 'after') }}
+                  >
+                    Select Both ↗
+                  </button>
+                </div>
+                <ImageryCard
+                  key={`bp-${bestPair.before.id}`}
+                  item={bestPair.before}
+                  timing="before"
+                  selected={isSelected(bestPair.before)}
+                  overlapsSelected={overlapsSelected(bestPair.before)}
+                  isBestPair={true}
+                  onSelect={onSelect}
+                  onMouseEnter={onHoverEnter}
+                  onMouseLeave={onHoverLeave}
+                />
+                {beforeItems.filter(i => i.id !== bestPair.before.id).length > 0 && (
+                  <div className={styles.allImagesLabel}>All imagery</div>
+                )}
+              </>
+            )}
+
+            {beforeItems.filter(i => i.id !== bestPair?.before?.id).map(item => (
               <ImageryCard
                 key={item.id}
                 item={item}
@@ -184,7 +232,31 @@ export default function ResultsPanel({
         {afterItems.length > 0 && (
           <>
             <div className={styles.groupLabel} style={{ marginTop: beforeItems.length ? 8 : 0 }}>After — {event?.eventDate}</div>
-            {afterItems.map(item => (
+
+            {/* Best pair pin */}
+            {bestPair?.after && (
+              <>
+                <div className={styles.bestPairHeader}>
+                  <span className={styles.bestPairLabel}>★ Best Match</span>
+                </div>
+                <ImageryCard
+                  key={`bp-${bestPair.after.id}`}
+                  item={bestPair.after}
+                  timing="after"
+                  selected={isSelected(bestPair.after)}
+                  overlapsSelected={overlapsSelected(bestPair.after)}
+                  isBestPair={true}
+                  onSelect={onSelect}
+                  onMouseEnter={onHoverEnter}
+                  onMouseLeave={onHoverLeave}
+                />
+                {afterItems.filter(i => i.id !== bestPair.after.id).length > 0 && (
+                  <div className={styles.allImagesLabel}>All imagery</div>
+                )}
+              </>
+            )}
+
+            {afterItems.filter(i => i.id !== bestPair?.after?.id).map(item => (
               <ImageryCard
                 key={item.id}
                 item={item}
