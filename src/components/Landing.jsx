@@ -1,7 +1,32 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { EVENTS } from '../lib/events.js'
 import Header from './Header.jsx'
 import styles from './Landing.module.css'
+
+const CATEGORY_ORDER = ['Fire', 'Flood', 'Hurricane', 'Earthquake', 'Conflict', 'Other']
+
+const CATEGORY_EMOJI = {
+  Fire:       '🔥',
+  Flood:      '🌊',
+  Hurricane:  '🌀',
+  Earthquake: '🌍',
+  Conflict:   '⚔️',
+  Other:      '◆',
+}
+
+const TYPE_TO_CATEGORY = {
+  Wildfire:   'Fire',
+  Flood:      'Flood',
+  Hurricane:  'Hurricane',
+  Cyclone:    'Hurricane',
+  Typhoon:    'Hurricane',
+  Earthquake: 'Earthquake',
+  Conflict:   'Conflict',
+}
+
+function getCategory(type) {
+  return TYPE_TO_CATEGORY[type] || 'Other'
+}
 
 // Compute ESRI World Imagery tile URL for a given center [lng, lat] and zoom
 function esriTileUrl(center, zoom) {
@@ -27,6 +52,22 @@ export default function Landing({ onSelectEvent }) {
   const filtered = EVENTS.filter(e =>
     !query || e.name.toLowerCase().includes(query.toLowerCase()) || e.location.toLowerCase().includes(query.toLowerCase())
   )
+
+  // Group disaster events by category, sorted chronologically within each group
+  const categorizedEvents = useMemo(() => {
+    const disasterEvents = EVENTS.filter(e => e.source !== 'satellogic')
+    const groups = {}
+    for (const cat of CATEGORY_ORDER) groups[cat] = []
+    for (const event of disasterEvents) groups[getCategory(event.type)].push(event)
+    for (const cat of CATEGORY_ORDER) {
+      groups[cat].sort((a, b) => new Date(a.eventDate) - new Date(b.eventDate))
+    }
+    return CATEGORY_ORDER
+      .filter(cat => groups[cat].length > 0)
+      .map(cat => ({ cat, events: groups[cat] }))
+  }, [])
+
+  const satellogicEvents = useMemo(() => EVENTS.filter(e => e.source === 'satellogic'), [])
 
   useEffect(() => {
     function onClickOutside(e) {
@@ -89,73 +130,74 @@ export default function Landing({ onSelectEvent }) {
         </div>
       </div>
 
-      {/* Event grid */}
+      {/* Event grid — grouped by category */}
       <div className={styles.grid}>
-        <div className={styles.gridLabel}>Featured Events</div>
-        <div className={styles.eventGrid}>
-          {EVENTS.filter(e => e.source !== 'satellogic').map(event => (
-            <button
-              key={event.id}
-              className={styles.eventCard}
-              onClick={() => onSelectEvent(event)}
-            >
-              <div
-                className={styles.eventThumb}
-                style={{ background: event.thumbGradient }}
-              >
-                <img
-                  src={esriTileUrl(event.center, Math.min(event.zoom, 12))}
-                  alt=""
-                  className={styles.eventThumbImg}
-                  loading="lazy"
-                />
-                <span className={`${styles.eventBadge} ${event.type === 'Archive' ? styles.eventBadgeArchive : ''}`}>
-                  {event.type}
-                </span>
-                {event.source === 'satellogic' && (
-                  <span className={styles.eventSourceBadge}>Satellogic 1m</span>
-                )}
-                <span className={styles.eventCount}>{event.imageCount}+ images</span>
-              </div>
-              <div className={styles.eventInfo}>
-                <div className={styles.eventName}>{event.name}</div>
-                <div className={styles.eventMeta}>
-                  {event.location}{event.eventDate ? ` · ${new Date(event.eventDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}` : ''}
-                </div>
-              </div>
-            </button>
-          ))}
-        </div>
+        {categorizedEvents.map(({ cat, events }) => (
+          <div key={cat} className={styles.categorySection}>
+            <div className={styles.gridLabel}>
+              <span className={styles.categoryEmoji}>{CATEGORY_EMOJI[cat]}</span>
+              {cat}
+            </div>
+            <div className={styles.eventGrid}>
+              {events.map(event => (
+                <button
+                  key={event.id}
+                  className={styles.eventCard}
+                  onClick={() => onSelectEvent(event)}
+                >
+                  <div className={styles.eventThumb} style={{ background: event.thumbGradient }}>
+                    <img
+                      src={esriTileUrl(event.center, Math.min(event.zoom, 12))}
+                      alt=""
+                      className={styles.eventThumbImg}
+                      loading="lazy"
+                    />
+                    <span className={styles.eventBadge}>{event.type}</span>
+                    <span className={styles.eventCount}>{event.imageCount}+ images</span>
+                  </div>
+                  <div className={styles.eventInfo}>
+                    <div className={styles.eventName}>{event.name}</div>
+                    <div className={styles.eventMeta}>
+                      {event.location}{event.eventDate ? ` · ${new Date(event.eventDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}` : ''}
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
 
         {/* Satellogic open archive section */}
-        <div className={styles.gridLabel} style={{ marginTop: 36 }}>Open Archive · Satellogic EarthView · 1m GSD · CC-BY-4.0</div>
-        <div className={styles.eventGrid}>
-          {EVENTS.filter(e => e.source === 'satellogic').map(event => (
-            <button
-              key={event.id}
-              className={styles.eventCard}
-              onClick={() => onSelectEvent(event)}
-            >
-              <div
-                className={styles.eventThumb}
-                style={{ background: event.thumbGradient }}
+        <div className={styles.categorySection}>
+          <div className={styles.gridLabel}>
+            <span className={styles.categoryEmoji}>🛰</span>
+            Open Archive · Satellogic EarthView · 1m GSD · CC-BY-4.0
+          </div>
+          <div className={styles.eventGrid}>
+            {satellogicEvents.map(event => (
+              <button
+                key={event.id}
+                className={styles.eventCard}
+                onClick={() => onSelectEvent(event)}
               >
-                <img
-                  src={esriTileUrl(event.center, Math.min(event.zoom, 12))}
-                  alt=""
-                  className={styles.eventThumbImg}
-                  loading="lazy"
-                />
-                <span className={`${styles.eventBadge} ${styles.eventBadgeArchive}`}>Archive</span>
-                <span className={styles.eventSourceBadge}>Satellogic 1m</span>
-                <span className={styles.eventCount}>80+ images</span>
-              </div>
-              <div className={styles.eventInfo}>
-                <div className={styles.eventName}>{event.name}</div>
-                <div className={styles.eventMeta}>{event.location} · 2022</div>
-              </div>
-            </button>
-          ))}
+                <div className={styles.eventThumb} style={{ background: event.thumbGradient }}>
+                  <img
+                    src={esriTileUrl(event.center, Math.min(event.zoom, 12))}
+                    alt=""
+                    className={styles.eventThumbImg}
+                    loading="lazy"
+                  />
+                  <span className={`${styles.eventBadge} ${styles.eventBadgeArchive}`}>Archive</span>
+                  <span className={styles.eventSourceBadge}>Satellogic 1m</span>
+                  <span className={styles.eventCount}>80+ images</span>
+                </div>
+                <div className={styles.eventInfo}>
+                  <div className={styles.eventName}>{event.name}</div>
+                  <div className={styles.eventMeta}>{event.location} · 2022</div>
+                </div>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </div>

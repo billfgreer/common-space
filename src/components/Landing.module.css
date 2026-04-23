@@ -160,6 +160,13 @@
   width: 100%;
 }
 
+.categorySection {
+  margin-bottom: 40px;
+}
+.categorySection:last-child {
+  margin-bottom: 0;
+}
+
 .gridLabel {
   font-size: 10px;
   font-weight: 800;
@@ -167,6 +174,16 @@
   text-transform: uppercase;
   color: var(--ink-soft);
   margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.categoryEmoji {
+  font-size: 13px;
+  line-height: 1;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .eventGrid {
