@@ -17,10 +17,13 @@ const ChevronLeft = () => (
   </svg>
 )
 
-export default function Header({ event, onBack, backLabel = 'All Events' }) {
+export default function Header({ event, onBack, backLabel = 'All Events', onHome }) {
   return (
     <header className={styles.header}>
-      <Logo />
+      {onHome
+        ? <button className={styles.logoBtn} onClick={onHome}><Logo /></button>
+        : <Logo />
+      }
       {event && (
         <>
           <div className={styles.divider} />

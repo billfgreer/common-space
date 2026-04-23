@@ -27,6 +27,7 @@ export default function App() {
         <Results
           event={selectedEvent}
           onBack={() => setScreen('landing')}
+          onHome={() => setScreen('landing')}
           onCompare={handleCompare}
         />
       )}
@@ -36,6 +37,7 @@ export default function App() {
           afterItem={compareItems.after}
           event={selectedEvent}
           onBack={() => setScreen('results')}
+          onHome={() => setScreen('landing')}
         />
       )}
     </div>

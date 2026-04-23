@@ -58,7 +58,7 @@ function DownloadIcon() {
   )
 }
 
-export default function Compare({ beforeItem, afterItem, event, onBack }) {
+export default function Compare({ beforeItem, afterItem, event, onBack, onHome }) {
   const [sliderPct, setSliderPct]   = useState(50)
   const [modal, setModal]           = useState(null)
   const [copied, setCopied]         = useState(false)
@@ -77,7 +77,7 @@ export default function Compare({ beforeItem, afterItem, event, onBack }) {
     const focusBbox = overlap || afterItem?.bbox || beforeItem?.bbox
     const view = mapViewFromBbox(focusBbox)
 
-    const baseStyle = 'https://demotiles.maplibre.org/style.json'
+    const baseStyle = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'
 
     const bMap = new maplibregl.Map({
       container: beforeMapEl.current,
@@ -85,6 +85,7 @@ export default function Compare({ beforeItem, afterItem, event, onBack }) {
       center: view.center,
       zoom: view.zoom,
     })
+    bMap.addControl(new maplibregl.NavigationControl(), 'top-right')
 
     // After map is non-interactive — it just follows the before map
     const aMap = new maplibregl.Map({
@@ -187,6 +188,7 @@ export default function Compare({ beforeItem, afterItem, event, onBack }) {
         event={event ? { name: `Comparing — ${event.name}` } : null}
         onBack={onBack}
         backLabel="Results"
+        onHome={onHome}
       />
 
       {/* ── Comparison viewport ── */}

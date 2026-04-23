@@ -5,7 +5,7 @@ import ResultsPanel from './ResultsPanel.jsx'
 import { streamEventItems } from '../lib/stac.js'
 import styles from './Results.module.css'
 
-export default function Results({ event, onBack, onCompare }) {
+export default function Results({ event, onBack, onHome, onCompare }) {
   const [items, setItems]         = useState([])
   const [loading, setLoading]     = useState(true)
   const [hoveredId, setHoveredId] = useState(null)
@@ -60,7 +60,7 @@ export default function Results({ event, onBack, onCompare }) {
 
   return (
     <div className={styles.screen}>
-      <Header event={event} onBack={onBack} backLabel="All Events" />
+      <Header event={event} onBack={onBack} backLabel="All Events" onHome={onHome} />
       <div className={styles.body}>
         <MapPanel
           event={event}

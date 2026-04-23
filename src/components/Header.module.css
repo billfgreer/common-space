@@ -34,3 +34,15 @@
 }
 
 .spacer { flex: 1; }
+
+.logoBtn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  border-radius: 6px;
+  transition: opacity .15s;
+}
+.logoBtn:hover { opacity: .75; }
