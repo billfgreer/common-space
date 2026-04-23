@@ -103,6 +103,7 @@ export default function ImageryCard({
   selected,         // false | 'before' | 'after'
   overlapsSelected, // true | false | null
   isBestPair,       // true | undefined
+  isPreview,        // true | undefined — currently shown on map
   onSelect,
   onMouseEnter,
   onMouseLeave,
@@ -155,6 +156,9 @@ export default function ImageryCard({
           <span className={`${styles.badge} ${timing === 'before' ? styles.badgeBefore : styles.badgeAfter}`}>
             {timing}
           </span>
+          {isPreview && (
+            <span className={styles.onMapBadge}>◉ On map</span>
+          )}
         </div>
 
         {/* Body */}

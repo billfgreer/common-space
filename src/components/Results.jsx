@@ -74,6 +74,7 @@ export default function Results({ event, onBack, onHome, onCompare }) {
           loading={loading}
           event={event}
           selectedItems={selected}
+          previewItemId={previewItem?.id}
           onSelect={handleSelect}
           onHoverEnter={item => setHoveredId(item.id)}
           onHoverLeave={() => setHoveredId(null)}

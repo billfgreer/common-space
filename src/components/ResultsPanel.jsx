@@ -18,6 +18,7 @@ export default function ResultsPanel({
   loading,
   event,
   selectedItems,   // { before: item|null, after: item|null }
+  previewItemId,   // id of item currently shown on map
   onSelect,
   onHoverEnter,
   onHoverLeave,
@@ -204,6 +205,7 @@ export default function ResultsPanel({
                   selected={isSelected(bestPair.before)}
                   overlapsSelected={overlapsSelected(bestPair.before)}
                   isBestPair={true}
+                  isPreview={bestPair.before.id === previewItemId}
                   onSelect={onSelect}
                   onMouseEnter={onHoverEnter}
                   onMouseLeave={onHoverLeave}
@@ -221,6 +223,7 @@ export default function ResultsPanel({
                 timing="before"
                 selected={isSelected(item)}
                 overlapsSelected={overlapsSelected(item)}
+                isPreview={item.id === previewItemId}
                 onSelect={onSelect}
                 onMouseEnter={onHoverEnter}
                 onMouseLeave={onHoverLeave}
@@ -246,6 +249,7 @@ export default function ResultsPanel({
                   selected={isSelected(bestPair.after)}
                   overlapsSelected={overlapsSelected(bestPair.after)}
                   isBestPair={true}
+                  isPreview={bestPair.after.id === previewItemId}
                   onSelect={onSelect}
                   onMouseEnter={onHoverEnter}
                   onMouseLeave={onHoverLeave}
@@ -263,6 +267,7 @@ export default function ResultsPanel({
                 timing="after"
                 selected={isSelected(item)}
                 overlapsSelected={overlapsSelected(item)}
+                isPreview={item.id === previewItemId}
                 onSelect={onSelect}
                 onMouseEnter={onHoverEnter}
                 onMouseLeave={onHoverLeave}
@@ -278,6 +283,7 @@ export default function ResultsPanel({
             item={item}
             timing={item.timing}
             selected={isSelected(item)}
+            isPreview={item.id === previewItemId}
             onSelect={onSelect}
             onMouseEnter={onHoverEnter}
             onMouseLeave={onHoverLeave}
