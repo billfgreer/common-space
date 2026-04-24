@@ -73,7 +73,7 @@ export default function Results({ event, onBack, onHome, onCompare }) {
           hoveredId={hoveredId}
           selectedItems={selected}
           previewItem={previewItem}
-          onItemClick={handleSelect}
+          onItemClick={handlePreview}
         />
         <ResultsPanel
           items={items}

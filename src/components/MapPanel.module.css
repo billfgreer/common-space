@@ -29,8 +29,9 @@
 .toggleBtn:hover { transform: translateY(-1px); }
 .toggleBtn:active { transform: translateY(0); }
 
-.toggleBefore { background: rgba(232,184,32,.92); color: var(--ink); }
-.toggleAfter  { background: rgba(10,175,184,.92);  color: var(--ink); }
+.togglePreview { background: rgba(255,255,255,.88); color: var(--ink); backdrop-filter: blur(8px); }
+.toggleBefore  { background: rgba(232,184,32,.92); color: var(--ink); }
+.toggleAfter   { background: rgba(10,175,184,.92);  color: var(--ink); }
 
 .toggleOff {
   opacity: 0.42;

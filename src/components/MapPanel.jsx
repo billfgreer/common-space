@@ -90,18 +90,13 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
         paint: { 'fill-color': 'rgba(200,57,138,.25)', 'fill-opacity': 1 },
       })
 
-      // ── Click polygon → select item ───────────────────
+      // ── Click polygon → preview item on map ───────────
       map.on('click', 'fp-fill', e => {
         const feature = e.features?.[0]
         if (!feature) return
         const item = itemsRef.current.find(i => i.id === feature.properties.id)
         if (!item) return
-        const ev = eventRef.current
-        const eventMs = ev?.eventDate ? new Date(ev.eventDate).getTime() : null
-        const timing = !eventMs || !item.datetime
-          ? 'after'
-          : item.datetime.getTime() <= eventMs ? 'before' : 'after'
-        onItemClickRef.current?.(item, timing)
+        onItemClickRef.current?.(item)
       })
       map.on('mouseenter', 'fp-fill', () => { map.getCanvas().style.cursor = 'pointer' })
       map.on('mouseleave', 'fp-fill', () => { map.getCanvas().style.cursor = '' })
@@ -202,6 +197,33 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
     try { map.setLayoutProperty('after-cog-layer', 'visibility', showAfter ? 'visible' : 'none') } catch {}
   }, [showAfter])
 
+  // ── Preview COG layer — loads the imagery tile layer for the active preview item ──
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    const apply = () => {
+      // Always tear down previous preview layer first
+      try { if (map.getLayer('preview-cog-layer')) map.removeLayer('preview-cog-layer') } catch {}
+      try { if (map.getSource('cog-preview'))      map.removeSource('cog-preview')      } catch {}
+      if (!previewItem?.cogUrl) return
+      try {
+        // Sit below footprint outlines but above fills so footprints remain as reference
+        const anchor = map.getLayer('fp-line') ? 'fp-line' : map.getLayer('fp-fill') ? 'fp-fill' : undefined
+        map.addSource('cog-preview', {
+          type: 'raster',
+          tiles: [cogTileUrl(previewItem.cogUrl)],
+          tileSize: 256,
+        })
+        map.addLayer({
+          id: 'preview-cog-layer', type: 'raster', source: 'cog-preview',
+          paint: { 'raster-opacity': 0.95 },
+        }, anchor)
+      } catch (e) { console.warn('preview COG layer error:', e) }
+    }
+    if (map.isStyleLoaded()) apply()
+    else { map.once('load', apply); return () => map.off('load', apply) }
+  }, [previewItem]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Zoom to previewItem bbox ──────────────────────────
   useEffect(() => {
     const map = mapRef.current
@@ -221,16 +243,40 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
     else { map.once('load', fly) }
   }, [event?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const hasBefore = !!selectedItems?.before
-  const hasAfter  = !!selectedItems?.after
+  const hasBefore  = !!selectedItems?.before
+  const hasAfter   = !!selectedItems?.after
+  const hasPreview = !!previewItem?.cogUrl
+
+  const [showPreview, setShowPreview] = useState(true)
+  const showPreviewRef = useRef(true)
+  useEffect(() => { showPreviewRef.current = showPreview }, [showPreview])
+
+  // Toggle preview layer visibility
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !map.isStyleLoaded()) return
+    try { map.setLayoutProperty('preview-cog-layer', 'visibility', showPreview ? 'visible' : 'none') } catch {}
+  }, [showPreview])
 
   return (
     <div className={styles.wrap}>
       <div ref={containerRef} className={styles.map} />
 
-      {/* Before / After layer toggles */}
-      {(hasBefore || hasAfter) && (
+      {/* Layer toggles */}
+      {(hasPreview || hasBefore || hasAfter) && (
         <div className={styles.toggleBar}>
+          {hasPreview && (
+            <button
+              className={[styles.toggleBtn, styles.togglePreview, showPreview ? '' : styles.toggleOff].filter(Boolean).join(' ')}
+              onClick={() => setShowPreview(v => !v)}
+              title={showPreview ? 'Hide imagery' : 'Show imagery'}
+            >
+              <span className={styles.toggleDot} />
+              {previewItem?.platform
+                ? previewItem.platform.replace('worldview-', 'WV-').replace('WorldView-', 'WV-')
+                : 'Image'}
+            </button>
+          )}
           {hasBefore && (
             <button
               className={[styles.toggleBtn, styles.toggleBefore, showBefore ? '' : styles.toggleOff].filter(Boolean).join(' ')}
