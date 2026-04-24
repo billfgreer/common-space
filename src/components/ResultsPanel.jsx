@@ -28,7 +28,8 @@ export default function ResultsPanel({
   event,
   selectedItems,   // { before: item|null, after: item|null }
   previewItemId,
-  onSelect,
+  onPreview,       // (item) => void — show image on map, primary action
+  onSelect,        // (item, timing) => void — add to comparison
   onHoverEnter,
   onHoverLeave,
   onCompare,
@@ -228,6 +229,7 @@ export default function ResultsPanel({
                   overlapPct={overlapWithSelected(bestPair.before)}
                   isBestPair={true}
                   isPreview={bestPair.before.id === previewItemId}
+                  onPreview={onPreview}
                   onSelect={onSelect}
                   onMouseEnter={onHoverEnter}
                   onMouseLeave={onHoverLeave}
@@ -240,6 +242,7 @@ export default function ResultsPanel({
                   overlapPct={overlapWithSelected(bestPair.after)}
                   isBestPair={true}
                   isPreview={bestPair.after.id === previewItemId}
+                  onPreview={onPreview}
                   onSelect={onSelect}
                   onMouseEnter={onHoverEnter}
                   onMouseLeave={onHoverLeave}

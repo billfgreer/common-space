@@ -43,10 +43,15 @@ export default function Results({ event, onBack, onHome, onCompare }) {
     return () => controller.abort()
   }, [event?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Preview: just show this image on the map (primary exploration action)
+  const handlePreview = useCallback((item) => {
+    setPreviewItem(item)
+  }, [])
+
+  // Select for comparison: assign to before/after slot (also previews)
   const handleSelect = useCallback((item, timing) => {
-    setPreviewItem(item)  // always show on map when clicked
+    setPreviewItem(item)
     setSelected(prev => {
-      // Toggle off if already selected in this slot
       if (prev[timing]?.id === item.id) return { ...prev, [timing]: null }
       return { ...prev, [timing]: item }
     })
@@ -76,6 +81,7 @@ export default function Results({ event, onBack, onHome, onCompare }) {
           event={event}
           selectedItems={selected}
           previewItemId={previewItem?.id}
+          onPreview={handlePreview}
           onSelect={handleSelect}
           onHoverEnter={item => setHoveredId(item.id)}
           onHoverLeave={() => setHoveredId(null)}

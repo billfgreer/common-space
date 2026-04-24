@@ -12,10 +12,18 @@ const CloudIcon = () => (
 )
 
 const DownloadIcon = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
     <polyline points="7 10 12 15 17 10"/>
     <line x1="12" y1="15" x2="12" y2="3"/>
+  </svg>
+)
+
+const MapIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/>
+    <line x1="9" y1="3" x2="9" y2="18"/>
+    <line x1="15" y1="6" x2="15" y2="21"/>
   </svg>
 )
 
@@ -309,7 +317,8 @@ export default function ImageryCard({
   overlapPct,    // number 0-100 | null — overlap with the currently selected comparison item
   isBestPair,    // true | undefined
   isPreview,     // true | undefined — currently shown on map
-  onSelect,
+  onPreview,     // (item) => void — show on map (primary exploration)
+  onSelect,      // (item, timing) => void — add to comparison
   onMouseEnter,
   onMouseLeave,
 }) {
@@ -328,9 +337,10 @@ export default function ImageryCard({
 
   const cardClass = [
     styles.card,
+    isPreview ? styles.cardPreviewing : '',
     selected === 'before' ? styles.selectedBefore : '',
     selected === 'after'  ? styles.selectedAfter  : '',
-    isBestPair && !selected ? styles.bestPairCard : '',
+    isBestPair && !selected && !isPreview ? styles.bestPairCard : '',
   ].filter(Boolean).join(' ')
 
   function handleDownload(e) {
@@ -338,7 +348,6 @@ export default function ImageryCard({
     if (item.cogUrl) window.open(item.cogUrl, '_blank')
   }
 
-  // Overlap indicator color
   const overlapColor = overlapPct == null ? null
     : overlapPct >= 60 ? '#22c55e'
     : overlapPct >= 30 ? '#f59e0b'
@@ -349,9 +358,10 @@ export default function ImageryCard({
     <>
       <div
         className={cardClass}
-        onClick={() => onSelect(item, timing)}
+        onClick={() => onPreview?.(item)}
         onMouseEnter={() => onMouseEnter?.(item)}
         onMouseLeave={() => onMouseLeave?.()}
+        title="Click to view on map"
       >
         {/* Thumbnail */}
         <div className={styles.thumb}>
@@ -374,7 +384,7 @@ export default function ImageryCard({
               <div className={styles.platform}>{formatPlatform(item.platform)}</div>
             </div>
             <div className={styles.topRight}>
-              {item.cloudCover !== null && (
+              {item.cloudCover != null && (
                 <div className={styles.cloud}>
                   <CloudIcon />
                   {Math.round(item.cloudCover)}%
@@ -383,14 +393,11 @@ export default function ImageryCard({
             </div>
           </div>
 
-          {/* Overlap indicator */}
+          {/* Overlap indicator — shown when a comparison slot is already filled */}
           {overlapPct != null && (
             <div className={styles.overlapRow}>
               <div className={styles.overlapBar}>
-                <div
-                  className={styles.overlapFill}
-                  style={{ width: `${overlapPct}%`, background: overlapColor }}
-                />
+                <div className={styles.overlapFill} style={{ width: `${overlapPct}%`, background: overlapColor }} />
               </div>
               <span className={styles.overlapLabel} style={{ color: overlapColor }}>
                 {overlapPct}% overlap
@@ -400,33 +407,47 @@ export default function ImageryCard({
 
           {/* Actions */}
           <div className={styles.actions}>
-            {/* Primary: Download */}
+
+            {/* Primary: View on Map */}
             <button
-              className={styles.actionDownload}
-              onClick={handleDownload}
-              title={item.cogUrl ? 'Download Cloud-Optimised GeoTIFF' : 'No download available'}
-              disabled={!item.cogUrl}
+              className={`${styles.actionView} ${isPreview ? styles.actionViewActive : ''}`}
+              onClick={e => { e.stopPropagation(); onPreview?.(item) }}
+              title="Explore this image on the map"
             >
-              <DownloadIcon /> Download
+              <MapIcon />
+              {isPreview ? 'Viewing' : 'View'}
             </button>
 
-            {/* Secondary: Compare */}
+            {/* Secondary: Add to Compare */}
             <button
               className={`${styles.actionCompare} ${selected ? styles.actionCompareActive : ''}`}
-              onClick={e => { e.stopPropagation(); onSelect(item, timing) }}
-              title={selected ? 'Remove from comparison' : 'Add to comparison'}
+              onClick={e => { e.stopPropagation(); onSelect?.(item, timing) }}
+              title={selected ? 'Remove from comparison' : 'Add to side-by-side comparison'}
             >
               {selected ? '✓' : '⊕'} Compare
             </button>
 
-            {/* Info */}
-            <button
-              className={`${styles.actionInfo}`}
-              onClick={e => { e.stopPropagation(); setShowMeta(true) }}
-              title="View image metadata"
-            >
-              Info
-            </button>
+            {/* Utility row — small icon buttons */}
+            <div className={styles.utilActions}>
+              <button
+                className={styles.iconBtn}
+                onClick={handleDownload}
+                title={item.cogUrl ? 'Download Cloud-Optimized GeoTIFF' : 'No COG available'}
+                disabled={!item.cogUrl}
+              >
+                <DownloadIcon />
+              </button>
+              <button
+                className={styles.iconBtn}
+                onClick={e => { e.stopPropagation(); setShowMeta(true) }}
+                title="Image metadata"
+              >
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" opacity=".7">
+                  <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+                  <path d="M7.25 6.5h1.5v5h-1.5zm0-2.5h1.5v1.5h-1.5z"/>
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
       </div>
