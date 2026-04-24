@@ -2,9 +2,18 @@ import { useState, useMemo } from 'react'
 import ImageryCard from './ImageryCard.jsx'
 import styles from './ResultsPanel.module.css'
 
-function bboxOverlaps(a, b) {
-  if (!a || !b || a.length < 4 || b.length < 4) return false
-  return a[0] < b[2] && a[2] > b[0] && a[1] < b[3] && a[3] > b[1]
+// ─── Geometry helpers ──────────────────────────────────────────────────────────
+
+function bboxOverlapPct(a, b) {
+  if (!a || !b || a.length < 4 || b.length < 4) return 0
+  const ix1 = Math.max(a[0], b[0]), iy1 = Math.max(a[1], b[1])
+  const ix2 = Math.min(a[2], b[2]), iy2 = Math.min(a[3], b[3])
+  if (ix1 >= ix2 || iy1 >= iy2) return 0
+  const inter = (ix2 - ix1) * (iy2 - iy1)
+  const aArea = (a[2] - a[0]) * (a[3] - a[1])
+  const bArea = (b[2] - b[0]) * (b[3] - b[1])
+  const union = aArea + bArea - inter
+  return union > 0 ? Math.round((inter / union) * 100) : 0
 }
 
 const SORT_OPTIONS = [
@@ -18,14 +27,15 @@ export default function ResultsPanel({
   loading,
   event,
   selectedItems,   // { before: item|null, after: item|null }
-  previewItemId,   // id of item currently shown on map
+  previewItemId,
   onSelect,
   onHoverEnter,
   onHoverLeave,
   onCompare,
 }) {
-  const [sort, setSort]     = useState('date-asc')
-  const [filter, setFilter] = useState('all')  // all | before | after
+  const [sort, setSort]       = useState('date-asc')
+  const [filter, setFilter]   = useState('all')  // all | before | after
+  const [pairOpen, setPairOpen] = useState(true)  // best pair suggestion collapsed?
 
   // Decorate items with timing based on event date
   const decorated = useMemo(() => {
@@ -35,39 +45,44 @@ export default function ResultsPanel({
       ...item,
       timing: !eventMs || !item.datetime
         ? 'after'
-        : item.datetime.getTime() <= eventMs
-        ? 'before'
-        : 'after',
+        : item.datetime.getTime() <= eventMs ? 'before' : 'after',
     }))
   }, [items, event])
 
-  // All before/after items (pre-sort/filter) used for best pair computation
   const allBefore = useMemo(() => decorated.filter(i => i.timing === 'before'), [decorated])
   const allAfter  = useMemo(() => decorated.filter(i => i.timing === 'after'),  [decorated])
 
-  // Best pair: score by proximity to event date + low cloud cover, require bbox overlap
+  // Best pair: score by cloud cover + proximity to event + overlap (weighted heavily)
   const bestPair = useMemo(() => {
     if (!allBefore.length || !allAfter.length) return null
     const eventMs = event?.eventDate ? new Date(event.eventDate).getTime() : null
 
-    function score(item) {
-      let s = 100 - (item.cloudCover ?? 50)           // cloud bonus 0–100
+    function imgScore(item) {
+      let s = 100 - (item.cloudCover ?? 50)
       if (eventMs && item.datetime) {
         const days = Math.abs(item.datetime.getTime() - eventMs) / 86400000
-        s += Math.max(0, 200 - days)                   // proximity bonus 0–200
+        s += Math.max(0, 200 - days)
       }
       return s
     }
 
-    const topBefore = [...allBefore].sort((a, b) => score(b) - score(a)).slice(0, 10)
-    const topAfter  = [...allAfter].sort((a, b)  => score(b) - score(a)).slice(0, 10)
+    const topBefore = [...allBefore].sort((a, b) => imgScore(b) - imgScore(a)).slice(0, 12)
+    const topAfter  = [...allAfter].sort((a, b)  => imgScore(b) - imgScore(a)).slice(0, 12)
 
+    // Find best pair maximizing combined score + overlap (overlap weighted 3× per %)
+    let best = null, bestScore = -Infinity
     for (const b of topBefore) {
       for (const a of topAfter) {
-        if (bboxOverlaps(b.bbox, a.bbox)) return { before: b, after: a }
+        const pct = bboxOverlapPct(b.bbox, a.bbox)
+        if (pct === 0) continue
+        const s = imgScore(b) + imgScore(a) + pct * 3
+        if (s > bestScore) { bestScore = s; best = { before: b, after: a, overlapPct: pct } }
       }
     }
-    return { before: topBefore[0], after: topAfter[0] }  // fallback: no overlap
+    if (best) return best
+
+    // Fallback: no overlap, just best individual scores
+    return { before: topBefore[0], after: topAfter[0], overlapPct: 0 }
   }, [allBefore, allAfter, event])
 
   const sorted = useMemo(() => {
@@ -83,29 +98,10 @@ export default function ResultsPanel({
     return sorted.filter(i => i.timing === filter)
   }, [sorted, filter])
 
-  const beforeItemsRaw = filtered.filter(i => i.timing === 'before')
-  const afterItemsRaw  = filtered.filter(i => i.timing === 'after')
-
-  // When an item is selected on one side, filter the other side to overlapping images only
-  // Fall back to all images if nothing overlaps
-  const beforeItems = useMemo(() => {
-    if (!selectedItems.after) return beforeItemsRaw
-    const overlapping = beforeItemsRaw.filter(i => bboxOverlaps(i.bbox, selectedItems.after.bbox))
-    return overlapping.length ? overlapping : beforeItemsRaw
-  }, [beforeItemsRaw, selectedItems.after])
-
-  const afterItems = useMemo(() => {
-    if (!selectedItems.before) return afterItemsRaw
-    const overlapping = afterItemsRaw.filter(i => bboxOverlaps(i.bbox, selectedItems.before.bbox))
-    return overlapping.length ? overlapping : afterItemsRaw
-  }, [afterItemsRaw, selectedItems.before])
-
-  const canCompare = selectedItems.before && selectedItems.after
-
-  // Warn if selected pair doesn't overlap
-  const selectedOverlap = canCompare
-    ? bboxOverlaps(selectedItems.before.bbox, selectedItems.after.bbox)
-    : true
+  const canCompare = !!(selectedItems.before && selectedItems.after)
+  const selectedOverlapPct = canCompare
+    ? bboxOverlapPct(selectedItems.before.bbox, selectedItems.after.bbox)
+    : null
 
   function isSelected(item) {
     if (selectedItems.before?.id === item.id) return 'before'
@@ -113,25 +109,31 @@ export default function ResultsPanel({
     return false
   }
 
-  // Does this item overlap with whatever is already selected on the other side?
-  function overlapsSelected(item) {
+  // Overlap % between this item and whatever is selected on the other slot
+  function overlapWithSelected(item) {
     if (item.timing === 'after' && selectedItems.before)
-      return bboxOverlaps(item.bbox, selectedItems.before.bbox)
+      return bboxOverlapPct(item.bbox, selectedItems.before.bbox)
     if (item.timing === 'before' && selectedItems.after)
-      return bboxOverlaps(item.bbox, selectedItems.after.bbox)
-    return null // no selection to compare against yet
+      return bboxOverlapPct(item.bbox, selectedItems.after.bbox)
+    return null
   }
+
+  // Items to show in main list — exclude best pair items only when the pair section is visible
+  const showPairSection = !!(bestPair && filter === 'all')
+  const mainList = filtered.filter(i =>
+    !showPairSection || (i.id !== bestPair?.before?.id && i.id !== bestPair?.after?.id)
+  )
 
   return (
     <div className={styles.panel}>
 
-      {/* Toolbar */}
+      {/* ── Toolbar ── */}
       <div className={styles.toolbar}>
         <div className={styles.toolbarTop}>
           <div className={styles.count}>
             {loading
               ? <span className={styles.loadingText}>Loading imagery…</span>
-              : <><span className={styles.countNum}>{items.length}</span> images found</>
+              : <><span className={styles.countNum}>{items.length}</span> images</>
             }
           </div>
           <select className={styles.sortSelect} value={sort} onChange={e => setSort(e.target.value)}>
@@ -151,30 +153,38 @@ export default function ResultsPanel({
         </div>
       </div>
 
-      {/* Compare nudge bar */}
+      {/* ── Compare status bar (only shown when actively comparing) ── */}
       {(selectedItems.before || selectedItems.after) && (
         <div className={styles.compareBar}>
-          <span className={styles.compareBarText}>
-            {!selectedItems.before && 'Select a Before image'}
-            {!selectedItems.after  && 'Select an After image'}
-            {canCompare && selectedOverlap  && 'Ready to compare!'}
-            {canCompare && !selectedOverlap && '⚠ These images don\'t overlap — pick images with matching areas'}
-          </span>
-          <button
-            className={styles.compareBtn}
-            onClick={onCompare}
-            disabled={!canCompare}
-          >
-            Compare
+          <div className={styles.compareBarLeft}>
+            <span className={styles.compareBarTitle}>Comparing</span>
+            <span className={styles.compareBarStatus}>
+              {!selectedItems.before && <span className={styles.slotEmpty}>Before not set</span>}
+              {selectedItems.before  && <span className={styles.slotFilled}>✓ Before</span>}
+              <span className={styles.slotDivider}>·</span>
+              {!selectedItems.after  && <span className={styles.slotEmpty}>After not set</span>}
+              {selectedItems.after   && <span className={styles.slotFilled}>✓ After</span>}
+              {canCompare && selectedOverlapPct > 0 && (
+                <span className={styles.overlapBadge}>{selectedOverlapPct}% overlap</span>
+              )}
+              {canCompare && selectedOverlapPct === 0 && (
+                <span className={styles.noOverlapBadge}>⚠ No overlap</span>
+              )}
+            </span>
+          </div>
+          <button className={styles.compareBtn} onClick={onCompare} disabled={!canCompare}>
+            Compare ↗
           </button>
         </div>
       )}
 
-      {/* Card list */}
+      {/* ── Scrollable list ── */}
       <div className={styles.list}>
+
+        {/* Loading state */}
         {loading && items.length === 0 && (
           <div className={styles.skeletonWrap}>
-            {[...Array(4)].map((_, i) => <div key={i} className={styles.skeleton} />)}
+            {[...Array(5)].map((_, i) => <div key={i} className={styles.skeleton} />)}
           </div>
         )}
 
@@ -182,91 +192,77 @@ export default function ResultsPanel({
           <div className={styles.empty}>No imagery found for this event.</div>
         )}
 
-        {beforeItems.length > 0 && (
-          <>
-            <div className={styles.groupLabel}>Before — {event?.eventDate}</div>
+        {/* ── Suggested pair ── */}
+        {showPairSection && (
+          <div className={styles.pairSection}>
+            <button className={styles.pairToggle} onClick={() => setPairOpen(v => !v)}>
+              <span className={styles.pairToggleLeft}>
+                <span className={styles.pairStar}>★</span>
+                <span className={styles.pairToggleLabel}>Suggested Pair</span>
+                {bestPair.overlapPct > 0 && (
+                  <span className={styles.pairOverlap}>{bestPair.overlapPct}% overlap</span>
+                )}
+              </span>
+              <span className={styles.pairToggleActions}>
+                <button
+                  className={styles.selectBothBtn}
+                  onClick={e => {
+                    e.stopPropagation()
+                    onSelect(bestPair.before, 'before')
+                    onSelect(bestPair.after, 'after')
+                  }}
+                >
+                  Select Both
+                </button>
+                <span className={styles.pairCaret}>{pairOpen ? '▲' : '▼'}</span>
+              </span>
+            </button>
 
-            {/* Best pair pin */}
-            {bestPair?.before && (
-              <>
-                <div className={styles.bestPairHeader}>
-                  <span className={styles.bestPairLabel}>★ Best Match</span>
-                  <button
-                    className={styles.selectPairBtn}
-                    onClick={() => { onSelect(bestPair.before, 'before'); onSelect(bestPair.after, 'after') }}
-                  >
-                    Select Both ↗
-                  </button>
-                </div>
+            {pairOpen && (
+              <div className={styles.pairCards}>
                 <ImageryCard
-                  key={`bp-${bestPair.before.id}`}
+                  key={`bp-b-${bestPair.before.id}`}
                   item={bestPair.before}
                   timing="before"
                   selected={isSelected(bestPair.before)}
-                  overlapsSelected={overlapsSelected(bestPair.before)}
+                  overlapPct={overlapWithSelected(bestPair.before)}
                   isBestPair={true}
                   isPreview={bestPair.before.id === previewItemId}
                   onSelect={onSelect}
                   onMouseEnter={onHoverEnter}
                   onMouseLeave={onHoverLeave}
                 />
-                {beforeItems.filter(i => i.id !== bestPair.before.id).length > 0 && (
-                  <div className={styles.allImagesLabel}>All imagery</div>
-                )}
-              </>
-            )}
-
-            {beforeItems.filter(i => i.id !== bestPair?.before?.id).map(item => (
-              <ImageryCard
-                key={item.id}
-                item={item}
-                timing="before"
-                selected={isSelected(item)}
-                overlapsSelected={overlapsSelected(item)}
-                isPreview={item.id === previewItemId}
-                onSelect={onSelect}
-                onMouseEnter={onHoverEnter}
-                onMouseLeave={onHoverLeave}
-              />
-            ))}
-          </>
-        )}
-
-        {afterItems.length > 0 && (
-          <>
-            <div className={styles.groupLabel} style={{ marginTop: beforeItems.length ? 8 : 0 }}>After — {event?.eventDate}</div>
-
-            {/* Best pair pin */}
-            {bestPair?.after && (
-              <>
-                <div className={styles.bestPairHeader}>
-                  <span className={styles.bestPairLabel}>★ Best Match</span>
-                </div>
                 <ImageryCard
-                  key={`bp-${bestPair.after.id}`}
+                  key={`bp-a-${bestPair.after.id}`}
                   item={bestPair.after}
                   timing="after"
                   selected={isSelected(bestPair.after)}
-                  overlapsSelected={overlapsSelected(bestPair.after)}
+                  overlapPct={overlapWithSelected(bestPair.after)}
                   isBestPair={true}
                   isPreview={bestPair.after.id === previewItemId}
                   onSelect={onSelect}
                   onMouseEnter={onHoverEnter}
                   onMouseLeave={onHoverLeave}
                 />
-                {afterItems.filter(i => i.id !== bestPair.after.id).length > 0 && (
-                  <div className={styles.allImagesLabel}>All imagery</div>
-                )}
-              </>
+              </div>
             )}
+          </div>
+        )}
 
-            {afterItems.filter(i => i.id !== bestPair?.after?.id).map(item => (
+        {/* ── All imagery ── */}
+        {filtered.length > 0 && (
+          <>
+            <div className={styles.listHeader}>
+              <span className={styles.listHeaderLabel}>All imagery</span>
+              <span className={styles.listHeaderCount}>{filtered.length}</span>
+            </div>
+            {mainList.map(item => (
               <ImageryCard
                 key={item.id}
                 item={item}
-                timing="after"
+                timing={item.timing}
                 selected={isSelected(item)}
-                overlapsSelected={overlapsSelected(item)}
+                overlapPct={overlapWithSelected(item)}
                 isPreview={item.id === previewItemId}
                 onSelect={onSelect}
                 onMouseEnter={onHoverEnter}
@@ -275,20 +271,6 @@ export default function ResultsPanel({
             ))}
           </>
         )}
-
-        {/* Show ungrouped items if no event date to compare against */}
-        {beforeItems.length === 0 && afterItems.length === 0 && filtered.map(item => (
-          <ImageryCard
-            key={item.id}
-            item={item}
-            timing={item.timing}
-            selected={isSelected(item)}
-            isPreview={item.id === previewItemId}
-            onSelect={onSelect}
-            onMouseEnter={onHoverEnter}
-            onMouseLeave={onHoverLeave}
-          />
-        ))}
       </div>
     </div>
   )

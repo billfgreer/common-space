@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { cogThumbnailTileUrl } from '../lib/titiler.js'
 import styles from './ImageryCard.module.css'
@@ -12,12 +12,62 @@ const CloudIcon = () => (
 )
 
 const DownloadIcon = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
     <polyline points="7 10 12 15 17 10"/>
     <line x1="12" y1="15" x2="12" y2="3"/>
   </svg>
 )
+
+// ─── Portal tooltip ───────────────────────────────────────────────────────────
+// Renders outside any overflow-clipping ancestor via document.body portal.
+
+function Tip({ text }) {
+  const [tipPos, setTipPos] = useState(null)
+  const ref = useRef(null)
+
+  function handleMouseEnter() {
+    const r = ref.current?.getBoundingClientRect()
+    if (!r) return
+    // prefer right side; fall back to left if too close to right edge
+    const side = r.right + 230 < window.innerWidth ? 'right' : 'left'
+    // clamp vertically so tooltip doesn't go off-screen
+    const rawY = r.top + r.height / 2
+    const clampedY = Math.max(30, Math.min(rawY, window.innerHeight - 80))
+    setTipPos({ side, x: side === 'right' ? r.right + 10 : r.left - 10, y: clampedY })
+  }
+
+  function handleMouseLeave() { setTipPos(null) }
+
+  return (
+    <span
+      ref={ref}
+      className={styles.tip}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" opacity=".55">
+        <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5" fill="none" opacity=".7"/>
+        <path d="M7.25 6.5h1.5v5h-1.5zm0-2.5h1.5v1.5h-1.5z"/>
+      </svg>
+
+      {tipPos && createPortal(
+        <div
+          className={styles.tipPortal}
+          style={{
+            left:  tipPos.side === 'right' ? tipPos.x      : undefined,
+            right: tipPos.side === 'left'  ? window.innerWidth - tipPos.x : undefined,
+            top:   tipPos.y,
+            transform: 'translateY(-50%)',
+          }}
+        >
+          {text}
+        </div>,
+        document.body
+      )}
+    </span>
+  )
+}
 
 // ─── Metadata helpers ─────────────────────────────────────────────────────────
 
@@ -60,18 +110,6 @@ const TIPS = {
 }
 
 // ─── MetaModal sub-components ─────────────────────────────────────────────────
-
-function Tip({ text }) {
-  return (
-    <span className={styles.tip}>
-      <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" opacity=".55">
-        <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5" fill="none" opacity=".7"/>
-        <path d="M7.25 6.5h1.5v5h-1.5zm0-2.5h1.5v1.5h-1.5z"/>
-      </svg>
-      <span className={styles.tipPopup}>{text}</span>
-    </span>
-  )
-}
 
 function SectionHead({ emoji, label }) {
   return (
@@ -120,11 +158,11 @@ function MetaModal({ item, onClose }) {
   const props = raw.properties || {}
   const assets = raw.assets || {}
 
-  const cloudCover  = item.cloudCover
-  const gsd         = item.gsd ?? props.gsd
-  const offNadir    = props['view:off_nadir']
+  const cloudCover   = item.cloudCover
+  const gsd          = item.gsd ?? props.gsd
+  const offNadir     = props['view:off_nadir']
   const sunElevation = props['view:sun_elevation']
-  const sunAzimuth  = props['view:sun_azimuth']
+  const sunAzimuth   = props['view:sun_azimuth']
 
   const cloudQ = cloudCover != null ? getQuality(cloudCover, CLOUD_SCALE) : null
   const nadirQ = offNadir   != null ? getQuality(offNadir,   NADIR_SCALE) : null
@@ -136,7 +174,7 @@ function MetaModal({ item, onClose }) {
     item.datetime?.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
   ].filter(Boolean).join(' · ')
 
-  const hasStats = cloudCover != null || gsd != null || offNadir != null
+  const hasStats   = cloudCover != null || gsd != null || offNadir != null
   const hasCapture = sunElevation != null || sunAzimuth != null
   const assetEntries = Object.entries(assets)
 
@@ -186,9 +224,9 @@ function MetaModal({ item, onClose }) {
           {/* ── Sensor ── */}
           <SectionHead emoji="📡" label="Sensor" />
           <div className={styles.metaGroup}>
-            <MetaRow label="Platform"   value={platform}                          tip={TIPS.platform}   />
-            <MetaRow label="Instrument" value={props.instruments?.join(', ')}     tip={TIPS.instrument} />
-            <MetaRow label="Processing" value={props['processing:level']}         tip={TIPS.processing} />
+            <MetaRow label="Platform"   value={platform}                         tip={TIPS.platform}   />
+            <MetaRow label="Instrument" value={props.instruments?.join(', ')}    tip={TIPS.instrument} />
+            <MetaRow label="Processing" value={props['processing:level']}        tip={TIPS.processing} />
           </div>
 
           {/* ── Capture conditions ── */}
@@ -205,9 +243,9 @@ function MetaModal({ item, onClose }) {
           {/* ── Catalog ── */}
           <SectionHead emoji="🗂" label="Catalog" />
           <div className={styles.metaGroup}>
-            <MetaRow label="Captured"   value={item.datetime?.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) + ' UTC'} tip={TIPS.datetime} />
-            <MetaRow label="Collection" value={raw.collection}                   tip={TIPS.collection} />
-            <MetaRow label="Image ID"   value={item.id}                          tip={TIPS.id}         mono />
+            <MetaRow label="Captured"     value={item.datetime?.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) + ' UTC'} tip={TIPS.datetime}   />
+            <MetaRow label="Collection"   value={raw.collection}                   tip={TIPS.collection} />
+            <MetaRow label="Image ID"     value={item.id}                          tip={TIPS.id}         mono />
             <MetaRow label="Bounding Box" value={item.bbox?.map(n => n.toFixed(4)).join(', ')} tip={TIPS.bbox} mono />
           </div>
 
@@ -238,7 +276,7 @@ function MetaModal({ item, onClose }) {
             </>
           )}
 
-          {/* ── Raw JSON (collapsible) ── */}
+          {/* ── Raw JSON ── */}
           <button className={styles.rawToggle} onClick={() => setShowRaw(v => !v)}>
             <span className={styles.rawToggleArrow}>{showRaw ? '▼' : '▶'}</span>
             Raw JSON
@@ -266,18 +304,18 @@ function formatPlatform(platform) {
 
 export default function ImageryCard({
   item,
-  timing,           // 'before' | 'after'
-  selected,         // false | 'before' | 'after'
-  overlapsSelected, // true | false | null
-  isBestPair,       // true | undefined
-  isPreview,        // true | undefined — currently shown on map
+  timing,        // 'before' | 'after'
+  selected,      // false | 'before' | 'after'
+  overlapPct,    // number 0-100 | null — overlap with the currently selected comparison item
+  isBestPair,    // true | undefined
+  isPreview,     // true | undefined — currently shown on map
   onSelect,
   onMouseEnter,
   onMouseLeave,
 }) {
   const initSource = item.thumbnailUrl ? 'thumbnail' : item.cogUrl ? 'cog' : 'none'
   const [thumbSource, setThumbSource] = useState(initSource)
-  const [showMeta, setShowMeta] = useState(false)
+  const [showMeta, setShowMeta]       = useState(false)
 
   const thumbSrc = thumbSource === 'thumbnail' ? item.thumbnailUrl
                  : thumbSource === 'cog'       ? cogThumbnailTileUrl(item.cogUrl, item.bbox)
@@ -299,6 +337,13 @@ export default function ImageryCard({
     e.stopPropagation()
     if (item.cogUrl) window.open(item.cogUrl, '_blank')
   }
+
+  // Overlap indicator color
+  const overlapColor = overlapPct == null ? null
+    : overlapPct >= 60 ? '#22c55e'
+    : overlapPct >= 30 ? '#f59e0b'
+    : overlapPct >  0  ? '#ef4444'
+    : '#94a3b8'
 
   return (
     <>
@@ -328,26 +373,55 @@ export default function ImageryCard({
               <div className={styles.date}>{formatDate(item.datetime)}</div>
               <div className={styles.platform}>{formatPlatform(item.platform)}</div>
             </div>
-            {item.cloudCover !== null && (
-              <div className={styles.cloud}>
-                <CloudIcon />
-                {Math.round(item.cloudCover)}%
-              </div>
-            )}
+            <div className={styles.topRight}>
+              {item.cloudCover !== null && (
+                <div className={styles.cloud}>
+                  <CloudIcon />
+                  {Math.round(item.cloudCover)}%
+                </div>
+              )}
+            </div>
           </div>
 
+          {/* Overlap indicator */}
+          {overlapPct != null && (
+            <div className={styles.overlapRow}>
+              <div className={styles.overlapBar}>
+                <div
+                  className={styles.overlapFill}
+                  style={{ width: `${overlapPct}%`, background: overlapColor }}
+                />
+              </div>
+              <span className={styles.overlapLabel} style={{ color: overlapColor }}>
+                {overlapPct}% overlap
+              </span>
+            </div>
+          )}
+
+          {/* Actions */}
           <div className={styles.actions}>
-            <button className={styles.actionDownload} onClick={handleDownload} title="Download COG asset">
+            {/* Primary: Download */}
+            <button
+              className={styles.actionDownload}
+              onClick={handleDownload}
+              title={item.cogUrl ? 'Download Cloud-Optimised GeoTIFF' : 'No download available'}
+              disabled={!item.cogUrl}
+            >
               <DownloadIcon /> Download
             </button>
+
+            {/* Secondary: Compare */}
             <button
               className={`${styles.actionCompare} ${selected ? styles.actionCompareActive : ''}`}
               onClick={e => { e.stopPropagation(); onSelect(item, timing) }}
+              title={selected ? 'Remove from comparison' : 'Add to comparison'}
             >
-              {selected ? '✓ Selected' : overlapsSelected === true ? '✓ Same area' : 'Compare'}
+              {selected ? '✓' : '⊕'} Compare
             </button>
+
+            {/* Info */}
             <button
-              className={`${styles.actionDownload} ${styles.actionInfo}`}
+              className={`${styles.actionInfo}`}
               onClick={e => { e.stopPropagation(); setShowMeta(true) }}
               title="View image metadata"
             >
