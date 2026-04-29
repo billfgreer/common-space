@@ -25,18 +25,15 @@ export const EVENTS = [
     hdxLayers: [
       {
         name: 'ShakeMap — M7.8 Mainshock Intensity',
-        url: 'https://data.humdata.org/dataset/5015c7d2-f74a-472e-887e-3698910c2729/resource/3e03e1f4-998d-4549-9df9-a9f2d94368cb/download/cont-mi.json',
+        url: 'us20002926',
+        urlType: 'usgs-shakemap',
         format: 'GeoJSON', type: 'shakemap', source: 'USGS',
       },
       {
-        name: 'UNOSAT Damage Assessment — Kathmandu',
-        url: 'https://data.humdata.org/dataset/unosat-damage-assessment-of-kathmandu-valley-earthquake-affected-area/resource/a22b21e9-e8ea-4f22-9ddb-6e8a6dd2c1c2/download/kathmandu-damage-assessment.geojson',
-        format: 'GeoJSON', type: 'damage', source: 'UNOSAT',
-      },
-      {
-        name: 'OCHA Nepal Admin Boundaries',
-        url: 'https://data.humdata.org/dataset/a506c69d-df22-4e7c-8a87-f88be33c3c1a/resource/bb5d57b5-5e09-4c0f-9e3e-48eda70f4040/download/npl_adm_ocha_20201204_shp.zip',
-        format: 'SHP', type: 'admin', source: 'OCHA',
+        name: 'Nepal Admin Boundaries (ADM1)',
+        url: 'https://raw.githubusercontent.com/wmgeolab/geoBoundaries/main/releaseData/gbOpen/NPL/ADM1/geoBoundaries-NPL-ADM1.geojson',
+        urlType: 'direct',
+        format: 'GeoJSON', type: 'admin', source: 'GeoBoundaries',
       },
     ],
   },
@@ -58,14 +55,10 @@ export const EVENTS = [
     impact: { deaths: 2975, displaced: 900000, homesDestroyed: 70000, costUSD: 91000 },
     hdxLayers: [
       {
-        name: 'HOT — Puerto Rico Buildings',
-        url: 'https://data.humdata.org/dataset/hotosm_pri_buildings/resource/4e53fd45-8e2a-4b3f-b27c-6f7a4e9a4c1b/download/hotosm_pri_buildings_polygons_geojson.geojson',
-        format: 'GeoJSON', type: 'buildings', source: 'HOT',
-      },
-      {
-        name: 'OCHA Puerto Rico Admin Boundaries',
-        url: 'https://data.humdata.org/dataset/cod-ab-pri/resource/8e2a3f7b-1234-4abc-9def-1234567890ab/download/pri_admbnda_adm1_2019.geojson',
-        format: 'GeoJSON', type: 'admin', source: 'OCHA',
+        name: 'Puerto Rico Admin Boundaries (ADM1)',
+        url: 'https://raw.githubusercontent.com/wmgeolab/geoBoundaries/main/releaseData/gbOpen/PRI/ADM1/geoBoundaries-PRI-ADM1.geojson',
+        urlType: 'direct',
+        format: 'GeoJSON', type: 'admin', source: 'GeoBoundaries',
       },
     ],
   },
@@ -239,14 +232,10 @@ export const EVENTS = [
     impact: { deaths: 1739, displaced: 33000000, homesDestroyed: 1700000, costUSD: 30000 },
     hdxLayers: [
       {
-        name: 'UNOSAT Flood Extent — Sindh Province',
-        url: 'https://data.humdata.org/dataset/unosat-flood-extent-sindh-pakistan-2022/resource/3a8b9c7d-5e6f-4a1b-8c2d-9e0f1a2b3c4d/download/flood_extent_sindh_2022.geojson',
-        format: 'GeoJSON', type: 'flood', source: 'UNOSAT',
-      },
-      {
-        name: 'OCHA Pakistan Admin Boundaries',
-        url: 'https://data.humdata.org/dataset/cod-ab-pak/resource/b4c5d6e7-f8a9-4b0c-1d2e-3f4a5b6c7d8e/download/pak_admbnda_adm2_ocha_pco.geojson',
-        format: 'GeoJSON', type: 'admin', source: 'OCHA',
+        name: 'Pakistan Admin Boundaries (ADM1)',
+        url: 'https://raw.githubusercontent.com/wmgeolab/geoBoundaries/main/releaseData/gbOpen/PAK/ADM1/geoBoundaries-PAK-ADM1.geojson',
+        urlType: 'direct',
+        format: 'GeoJSON', type: 'admin', source: 'GeoBoundaries',
       },
     ],
   },
@@ -343,19 +332,16 @@ export const EVENTS = [
     impact: { deaths: 50783, displaced: 1500000, homesDestroyed: 160000, costUSD: 100000 },
     hdxLayers: [
       {
-        name: 'USGS ShakeMap — M7.8 Pazarcık Intensity',
-        url: 'https://data.humdata.org/dataset/50d93259-2d49-4f84-85e6-3cd0aa03dfaa/resource/eaa64ce6-8737-408d-8e51-672a5debeee0/download/m-7.8-pazarcik-earthquake-kahramanmaras-earthquake-sequence.json',
+        name: 'ShakeMap — M7.8 Pazarcık Intensity',
+        url: 'us6000jllz',
+        urlType: 'usgs-shakemap',
         format: 'GeoJSON', type: 'shakemap', source: 'USGS',
       },
       {
-        name: 'UNOSAT Satellite-Detected Damaged Buildings',
-        url: 'https://data.humdata.org/dataset/unosat-damaged-buildings-kahramanmaras-earthquake/resource/d1e2f3a4-b5c6-7d8e-9f0a-1b2c3d4e5f6a/download/unosat_earthquake_turkey_2023_damage.geojson',
-        format: 'GeoJSON', type: 'damage', source: 'UNOSAT',
-      },
-      {
-        name: 'HOT — Destroyed Buildings (OSM)',
-        url: 'https://export.hotosm.org/v3/exports/12c31136-ec56-4c83-bdd9-f37b1cd7fc08/geojson',
-        format: 'GeoJSON', type: 'buildings', source: 'HOT',
+        name: 'Turkey Admin Boundaries (ADM1)',
+        url: 'https://raw.githubusercontent.com/wmgeolab/geoBoundaries/main/releaseData/gbOpen/TUR/ADM1/geoBoundaries-TUR-ADM1.geojson',
+        urlType: 'direct',
+        format: 'GeoJSON', type: 'admin', source: 'GeoBoundaries',
       },
     ],
   },
@@ -480,19 +466,16 @@ export const EVENTS = [
     impact: { deaths: 2960, displaced: 300000, homesDestroyed: 50000, costUSD: 1300 },
     hdxLayers: [
       {
-        name: 'UNOSAT Satellite-Detected Damaged Structures',
-        url: 'https://data.humdata.org/dataset/unosat-damage-assessment-morocco-earthquake-2023/resource/a1b2c3d4-e5f6-7890-abcd-ef1234567890/download/unosat_morocco_earthquake_2023_damage_assessment.geojson',
-        format: 'GeoJSON', type: 'damage', source: 'UNOSAT',
-      },
-      {
-        name: 'USGS ShakeMap — M6.8 Al Haouz Intensity',
-        url: 'https://data.humdata.org/dataset/morocco-earthquake-shakemap-2023/resource/b2c3d4e5-f6a7-8901-bcde-f12345678901/download/morocco_earthquake_shakemap_intensity.geojson',
+        name: 'ShakeMap — M6.8 Al Haouz Intensity',
+        url: 'us7000li5d',
+        urlType: 'usgs-shakemap',
         format: 'GeoJSON', type: 'shakemap', source: 'USGS',
       },
       {
-        name: 'OCHA Morocco Admin Boundaries',
-        url: 'https://data.humdata.org/dataset/cod-ab-mar/resource/c3d4e5f6-a7b8-9012-cdef-123456789012/download/mar_admbnda_adm2_ocha.geojson',
-        format: 'GeoJSON', type: 'admin', source: 'OCHA',
+        name: 'Morocco Admin Boundaries (ADM1)',
+        url: 'https://raw.githubusercontent.com/wmgeolab/geoBoundaries/main/releaseData/gbOpen/MAR/ADM1/geoBoundaries-MAR-ADM1.geojson',
+        urlType: 'direct',
+        format: 'GeoJSON', type: 'admin', source: 'GeoBoundaries',
       },
     ],
   },
@@ -512,19 +495,10 @@ export const EVENTS = [
     impact: { deaths: 11300, displaced: 40000, homesDestroyed: 5000, costUSD: 500 },
     hdxLayers: [
       {
-        name: 'UNOSAT Flood Extent — Derna',
-        url: 'https://data.humdata.org/dataset/unosat-flood-extent-derna-libya-2023/resource/d4e5f6a7-b8c9-0123-defa-234567890123/download/unosat_libya_derna_flood_extent_2023.geojson',
-        format: 'GeoJSON', type: 'flood', source: 'UNOSAT',
-      },
-      {
-        name: 'UNOSAT Damaged/Destroyed Buildings — Derna',
-        url: 'https://data.humdata.org/dataset/unosat-damage-assessment-derna-floods-2023/resource/e5f6a7b8-c9d0-1234-efab-345678901234/download/unosat_derna_damage_buildings_2023.geojson',
-        format: 'GeoJSON', type: 'damage', source: 'UNOSAT',
-      },
-      {
-        name: 'OCHA Libya Admin Boundaries',
-        url: 'https://data.humdata.org/dataset/cod-ab-lby/resource/f6a7b8c9-d0e1-2345-fabc-456789012345/download/lby_admbnda_adm2_ocha.geojson',
-        format: 'GeoJSON', type: 'admin', source: 'OCHA',
+        name: 'Libya Admin Boundaries (ADM1)',
+        url: 'https://raw.githubusercontent.com/wmgeolab/geoBoundaries/main/releaseData/gbOpen/LBY/ADM1/geoBoundaries-LBY-ADM1.geojson',
+        urlType: 'direct',
+        format: 'GeoJSON', type: 'admin', source: 'GeoBoundaries',
       },
     ],
   },
@@ -621,14 +595,10 @@ export const EVENTS = [
     impact: { deaths: 210, displaced: 400000, homesDestroyed: 40000, costUSD: 300 },
     hdxLayers: [
       {
-        name: 'UNOSAT Flood Extent — Kenya 2024',
-        url: 'https://data.humdata.org/dataset/unosat-flood-extent-kenya-2024/resource/a7b8c9d0-e1f2-3456-abcd-567890123456/download/unosat_kenya_flood_extent_2024.geojson',
-        format: 'GeoJSON', type: 'flood', source: 'UNOSAT',
-      },
-      {
-        name: 'OCHA Kenya Admin Boundaries',
-        url: 'https://data.humdata.org/dataset/cod-ab-ken/resource/b8c9d0e1-f2a3-4567-bcde-678901234567/download/ken_admbnda_adm2_iebc_20191031.geojson',
-        format: 'GeoJSON', type: 'admin', source: 'OCHA',
+        name: 'Kenya Admin Boundaries (ADM1)',
+        url: 'https://raw.githubusercontent.com/wmgeolab/geoBoundaries/main/releaseData/gbOpen/KEN/ADM1/geoBoundaries-KEN-ADM1.geojson',
+        urlType: 'direct',
+        format: 'GeoJSON', type: 'admin', source: 'GeoBoundaries',
       },
     ],
   },
@@ -648,14 +618,10 @@ export const EVENTS = [
     impact: { deaths: 153, displaced: 415000, homesDestroyed: 400000, costUSD: 3000 },
     hdxLayers: [
       {
-        name: 'UNOSAT Flood Extent — Rio Grande do Sul',
-        url: 'https://data.humdata.org/dataset/unosat-flood-extent-rio-grande-do-sul-brazil-2024/resource/c9d0e1f2-a3b4-5678-cdef-789012345678/download/unosat_brazil_rgs_flood_extent_2024.geojson',
-        format: 'GeoJSON', type: 'flood', source: 'UNOSAT',
-      },
-      {
-        name: 'OCHA Brazil Admin Boundaries',
-        url: 'https://data.humdata.org/dataset/cod-ab-bra/resource/d0e1f2a3-b4c5-6789-defa-890123456789/download/bra_admbnda_adm2_ibge.geojson',
-        format: 'GeoJSON', type: 'admin', source: 'OCHA',
+        name: 'Brazil Admin Boundaries (ADM1)',
+        url: 'https://raw.githubusercontent.com/wmgeolab/geoBoundaries/main/releaseData/gbOpen/BRA/ADM1/geoBoundaries-BRA-ADM1.geojson',
+        urlType: 'direct',
+        format: 'GeoJSON', type: 'admin', source: 'GeoBoundaries',
       },
     ],
   },
@@ -827,24 +793,16 @@ export const EVENTS = [
     impact: { deaths: 3700, displaced: 200000, homesDestroyed: 65000, costUSD: 1000 },
     hdxLayers: [
       {
-        name: 'UNOSAT Satellite-Detected Damaged Structures',
-        url: 'https://data.humdata.org/dataset/unosat-damage-assessment-myanmar-earthquake-2025/resource/e1f2a3b4-c5d6-7890-efab-901234567890/download/unosat_myanmar_earthquake_2025_damage.geojson',
-        format: 'GeoJSON', type: 'damage', source: 'UNOSAT',
-      },
-      {
-        name: 'USGS ShakeMap — M7.7 Mandalay Intensity',
-        url: 'https://data.humdata.org/dataset/myanmar-earthquake-shakemap-2025/resource/f2a3b4c5-d6e7-8901-fabc-012345678901/download/myanmar_earthquake_2025_shakemap_intensity.geojson',
+        name: 'ShakeMap — M7.7 Mandalay Intensity',
+        url: 'us7000oaaz',
+        urlType: 'usgs-shakemap',
         format: 'GeoJSON', type: 'shakemap', source: 'USGS',
       },
       {
-        name: 'HOT — Myanmar Buildings (OSM)',
-        url: 'https://data.humdata.org/dataset/hotosm_mmr_buildings/resource/a3b4c5d6-e7f8-9012-abcd-123456789012/download/hotosm_mmr_buildings_polygons.geojson',
-        format: 'GeoJSON', type: 'buildings', source: 'HOT',
-      },
-      {
-        name: 'OCHA Myanmar Admin Boundaries',
-        url: 'https://data.humdata.org/dataset/cod-ab-mmr/resource/b4c5d6e7-f8a9-0123-bcde-234567890123/download/mmr_polbnda_adm2_250k_mimu.geojson',
-        format: 'GeoJSON', type: 'admin', source: 'OCHA',
+        name: 'Myanmar Admin Boundaries (ADM1)',
+        url: 'https://raw.githubusercontent.com/wmgeolab/geoBoundaries/main/releaseData/gbOpen/MMR/ADM1/geoBoundaries-MMR-ADM1.geojson',
+        urlType: 'direct',
+        format: 'GeoJSON', type: 'admin', source: 'GeoBoundaries',
       },
     ],
   },

@@ -100,11 +100,50 @@ export async function searchHDX({ bbox, query = '', rows = 25 } = {}) {
   return { total: data.result?.count ?? 0, datasets }
 }
 
-// ─── Fetch a resource file ─────────────────────────────────────────────────────
+// ─── Fetch a resource file (HDX or direct URL) ────────────────────────────────
 
 export async function fetchHDXResource(url) {
   const res = await fetchWithFallback(url)
   return await res.blob()
+}
+
+// ─── Fetch a USGS ShakeMap intensity contour GeoJSON ──────────────────────────
+// eventId: USGS ComCat event ID, e.g. 'us6000jllz'
+// Returns a parsed GeoJSON FeatureCollection (polygons, one per MMI band).
+
+export async function fetchUSGSShakeMap(eventId) {
+  // Step 1: fetch event detail — USGS FDSNWS has CORS enabled, no proxy needed
+  const detailUrl = `https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&eventid=${eventId}`
+  let detail
+  try {
+    const res = await fetch(detailUrl)
+    if (!res.ok) throw new Error(`USGS event ${eventId} not found (${res.status})`)
+    detail = await res.json()
+  } catch (e) {
+    throw new Error(`USGS lookup failed: ${e.message}`)
+  }
+
+  // Step 2: find the shakemap product and extract contour URL
+  const shakemaps = detail.properties?.products?.shakemap
+  if (!shakemaps?.length) throw new Error('No ShakeMap available for this event')
+
+  const contents = shakemaps[0]?.contents ?? {}
+  // Try MMI first (Modified Mercalli), fall back to PGA
+  const entry = contents['cont_mmi.json'] || contents['cont_mi.json'] || contents['download/cont_mmi.json']
+  if (!entry?.url) throw new Error('ShakeMap intensity contours not available')
+
+  // Step 3: fetch the contour GeoJSON (hosted on USGS CDN, CORS enabled)
+  let geojson
+  try {
+    const res = await fetch(entry.url)
+    if (!res.ok) throw new Error(`ShakeMap download failed (${res.status})`)
+    geojson = await res.json()
+  } catch (e) {
+    throw new Error(`ShakeMap download failed: ${e.message}`)
+  }
+
+  if (!geojson?.type) throw new Error('ShakeMap returned invalid GeoJSON')
+  return geojson
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

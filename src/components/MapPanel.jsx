@@ -3,7 +3,7 @@ import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { cogTileUrl } from '../lib/titiler.js'
 import { parseVectorFiles } from '../lib/vectorParse.js'
-import { fetchHDXResource, formatToExt } from '../lib/hdx.js'
+import { fetchHDXResource, fetchUSGSShakeMap, formatToExt } from '../lib/hdx.js'
 import HDXPanel from './HDXPanel.jsx'
 import styles from './MapPanel.module.css'
 
@@ -372,17 +372,40 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
     }
   }, [addLayer])
 
-  // ── Load a pre-curated event data layer from HDX ─────────────────────────
+  // ── Load a pre-curated event data layer ──────────────────────────────────
+  // Supports three urlType values:
+  //   'usgs-shakemap' — url is a USGS ComCat event ID; fetches ShakeMap contours
+  //   'direct'        — url is a public CORS-enabled GeoJSON (e.g. GeoBoundaries)
+  //   (default)       — url is an HDX/S3 resource; use proxy fallback chain
   const handleLoadHdxLayer = useCallback(async (hdxLayer) => {
     const key = hdxLayer.url
     setHdxLayerLoading(prev => ({ ...prev, [key]: true }))
     setHdxLayerErrors(prev => ({ ...prev, [key]: null }))
     try {
-      const blob = await fetchHDXResource(hdxLayer.url)
-      const ext  = formatToExt(hdxLayer.format)
-      const file = new File([blob], `${hdxLayer.name}.${ext}`, { type: blob.type })
-      const { name, geojson } = await parseVectorFiles([file])
-      addLayer(name, geojson)
+      let geojson
+
+      if (hdxLayer.urlType === 'usgs-shakemap') {
+        // USGS two-step: event detail → shakemap contour GeoJSON
+        geojson = await fetchUSGSShakeMap(hdxLayer.url)
+
+      } else if (hdxLayer.urlType === 'direct') {
+        // Direct public URL (GitHub raw, etc.) — fetch blob, parse as file
+        const blob = await fetchHDXResource(hdxLayer.url)
+        const ext  = formatToExt(hdxLayer.format)
+        const file = new File([blob], `${hdxLayer.name}.${ext}`, { type: blob.type })
+        const result = await parseVectorFiles([file])
+        geojson = result.geojson
+
+      } else {
+        // HDX resource with proxy fallback
+        const blob = await fetchHDXResource(hdxLayer.url)
+        const ext  = formatToExt(hdxLayer.format)
+        const file = new File([blob], `${hdxLayer.name}.${ext}`, { type: blob.type })
+        const result = await parseVectorFiles([file])
+        geojson = result.geojson
+      }
+
+      addLayer(hdxLayer.name, geojson)
     } catch (e) {
       setHdxLayerErrors(prev => ({ ...prev, [key]: e.message }))
     } finally {
@@ -478,35 +501,39 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
           <div className={styles.eventDataSection}>
             <div className={styles.eventDataLabel}>Event Data</div>
             {event.hdxLayers.map(hdxLayer => {
-              const key      = hdxLayer.url
-              const isLoaded = uploadedLayers.some(l => l.name === hdxLayer.name)
+              const key       = hdxLayer.url
+              const isLoaded  = uploadedLayers.some(l => l.name === hdxLayer.name)
               const isLoading = hdxLayerLoading[key]
-              const err      = hdxLayerErrors[key]
-              const meta     = TYPE_META[hdxLayer.type] || { label: hdxLayer.type, color: '#6b7280' }
+              const err       = hdxLayerErrors[key]
+              const meta      = TYPE_META[hdxLayer.type] || { label: hdxLayer.type, color: '#6b7280' }
               return (
-                <div key={key} className={styles.eventDataRow}>
-                  <span
-                    className={styles.eventDataType}
-                    style={{ background: `${meta.color}22`, color: meta.color, borderColor: `${meta.color}55` }}
-                  >
-                    {meta.label}
-                  </span>
-                  <span className={styles.eventDataName} title={`${hdxLayer.name} · ${hdxLayer.source}`}>
-                    {hdxLayer.name}
-                  </span>
-                  {isLoaded ? (
-                    <span className={styles.eventDataLoaded}>✓</span>
-                  ) : (
-                    <button
-                      className={styles.eventDataLoad}
-                      disabled={!!isLoading}
-                      onClick={() => handleLoadHdxLayer(hdxLayer)}
-                      title={`Load from ${hdxLayer.source}`}
+                <div key={key} className={styles.eventDataItem}>
+                  <div className={styles.eventDataRow}>
+                    <span
+                      className={styles.eventDataType}
+                      style={{ background: `${meta.color}22`, color: meta.color, borderColor: `${meta.color}55` }}
                     >
-                      {isLoading ? <span className={styles.spinnerXs} /> : 'Load'}
-                    </button>
+                      {meta.label}
+                    </span>
+                    <span className={styles.eventDataName} title={`${hdxLayer.name} · ${hdxLayer.source}`}>
+                      {hdxLayer.name}
+                    </span>
+                    {isLoaded ? (
+                      <span className={styles.eventDataLoaded}>✓</span>
+                    ) : (
+                      <button
+                        className={`${styles.eventDataLoad} ${err ? styles.eventDataLoadRetry : ''}`}
+                        disabled={!!isLoading}
+                        onClick={() => handleLoadHdxLayer(hdxLayer)}
+                        title={`Load from ${hdxLayer.source}`}
+                      >
+                        {isLoading ? <span className={styles.spinnerXs} /> : err ? 'Retry' : 'Load'}
+                      </button>
+                    )}
+                  </div>
+                  {err && (
+                    <div className={styles.eventDataErrMsg}>{err}</div>
                   )}
-                  {err && <span className={styles.eventDataErr} title={err}>!</span>}
                 </div>
               )
             })}
