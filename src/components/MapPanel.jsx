@@ -343,10 +343,11 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
   }, [uploadedLayers])
 
   // ── Shared: add a parsed GeoJSON layer to the map ────────────────────────
-  const addLayer = useCallback((name, geojson) => {
-    const map   = mapRef.current
-    const color = UPLOAD_COLORS[uploadedLayersRef.current.length % UPLOAD_COLORS.length]
-    const id    = `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  // color is optional — pass a hex string to override the auto palette
+  const addLayer = useCallback((name, geojson, color) => {
+    const map = mapRef.current
+    color = color ?? UPLOAD_COLORS[uploadedLayersRef.current.length % UPLOAD_COLORS.length]
+    const id  = `${Date.now()}-${Math.random().toString(36).slice(2)}`
     const featureCount = geojson.features?.length ?? 0
 
     if (map && featureCount > 0) {
@@ -443,7 +444,7 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
         throw new Error(`No ${osmLayer.name.toLowerCase()} found in this area`)
       }
 
-      addLayer(`OSM · ${osmLayer.name}`, geojson)
+      addLayer(`OSM · ${osmLayer.name}`, geojson, osmLayer.color)
     } catch (e) {
       setOsmErrors(prev => ({ ...prev, [key]: e.message }))
     } finally {

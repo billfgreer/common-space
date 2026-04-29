@@ -2,14 +2,13 @@
 // No authentication required — free & open.
 // Docs: https://wiki.openstreetmap.org/wiki/Overpass_API
 
-// Two public Overpass endpoints — we try the first, fall back to the second
+// Two public Overpass endpoints — try the first, fall back to the second
 const ENDPOINTS = [
   'https://overpass-api.de/api/interpreter',
   'https://overpass.kumi.systems/api/interpreter',
 ]
 
 // ─── Preset layer catalogue ───────────────────────────────────────────────────
-// Each entry defines what to show in the layer panel and what OSM tags to query.
 
 export const OSM_LAYERS = [
   {
@@ -17,7 +16,6 @@ export const OSM_LAYERS = [
     name:    'Hospitals & Clinics',
     icon:    '🏥',
     color:   '#ef4444',
-    // Overpass filter — matched against node/way/relation tags
     filters: ['amenity=hospital', 'amenity=clinic', 'amenity=doctors'],
   },
   {
@@ -58,66 +56,124 @@ export const OSM_LAYERS = [
 ]
 
 // ─── Build Overpass QL query ──────────────────────────────────────────────────
-// bbox: [west, south, east, north]  — standard GeoJSON order
+// bbox: [west, south, east, north]  (GeoJSON order)
 // Overpass expects (south, west, north, east)
+//
+// Uses `out geom;` so:
+//   - nodes     → lat/lon directly
+//   - ways      → geometry[] array of {lat,lon} — we build Polygon or LineString
+//   - relations → members[].geometry arrays — we build MultiPolygon from outers
 
 function buildQuery(bbox, filters) {
   const [west, south, east, north] = bbox
   const bboxStr = `${south},${west},${north},${east}`
 
-  // Build a union of node/way queries for each filter tag
+  // Include node, way, AND relation for each filter tag
   const unions = filters.flatMap(filter => {
-    const [key, val] = filter.split('=')
-    const tag = val ? `["${key}"="${val}"]` : `["${key}"]`
+    const eqIdx = filter.indexOf('=')
+    const key   = eqIdx === -1 ? filter : filter.slice(0, eqIdx)
+    const val   = eqIdx === -1 ? null   : filter.slice(eqIdx + 1)
+    const tag   = val !== null ? `["${key}"="${val}"]` : `["${key}"]`
     return [
       `node${tag}(${bboxStr});`,
       `way${tag}(${bboxStr});`,
+      `relation${tag}(${bboxStr});`,
     ]
   })
 
-  return `[out:json][timeout:25];\n(\n  ${unions.join('\n  ')}\n);\nout center;`
+  // timeout:60 because full geometry responses are larger than centroid responses
+  return `[out:json][timeout:60];\n(\n  ${unions.join('\n  ')}\n);\nout geom;`
 }
 
-// ─── Convert Overpass JSON → GeoJSON FeatureCollection ────────────────────────
-// Uses `out center;` so ways get a centroid rather than full polygon geometry.
-// This keeps the response small and renderable as circle markers.
+// ─── Geometry helpers ─────────────────────────────────────────────────────────
 
-function toGeoJSON(data, layerName) {
-  const features = (data.elements ?? []).flatMap(el => {
-    let coordinates
-    if (el.type === 'node') {
-      coordinates = [el.lon, el.lat]
-    } else if (el.center) {
-      coordinates = [el.center.lon, el.center.lat]
-    } else {
-      return [] // skip if no position
+function nodeCoords(el)  { return [el.lon, el.lat] }
+function wayCoords(geom) { return geom.map(n => [n.lon, n.lat]) }
+
+// A way ring is a closed polygon when first === last coord and has ≥4 points
+function isClosedRing(coords) {
+  if (coords.length < 4) return false
+  return coords[0][0] === coords[coords.length - 1][0] &&
+         coords[0][1] === coords[coords.length - 1][1]
+}
+
+// ─── Convert a single Overpass element → GeoJSON Feature (or null) ────────────
+
+function elementToFeature(el, layerName) {
+  const props = {
+    osm_id:   el.id,
+    osm_type: el.type,
+    name:     el.tags?.name ?? el.tags?.['name:en'] ?? layerName,
+    amenity:  el.tags?.amenity ?? '',
+    phone:    el.tags?.phone ?? el.tags?.['contact:phone'] ?? null,
+    website:  el.tags?.website ?? el.tags?.['contact:website'] ?? null,
+    operator: el.tags?.operator ?? null,
+    ...el.tags, // keep all tags for popup use
+  }
+
+  // ── Node → Point ──────────────────────────────────────────────────────────
+  if (el.type === 'node') {
+    return {
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: nodeCoords(el) },
+      properties: props,
+    }
+  }
+
+  // ── Way → Polygon or LineString ───────────────────────────────────────────
+  if (el.type === 'way' && el.geometry?.length) {
+    const coords = wayCoords(el.geometry)
+    return {
+      type: 'Feature',
+      geometry: isClosedRing(coords)
+        ? { type: 'Polygon',    coordinates: [coords] }
+        : { type: 'LineString', coordinates: coords   },
+      properties: props,
+    }
+  }
+
+  // ── Relation → MultiPolygon from outer members ────────────────────────────
+  if (el.type === 'relation' && el.members?.length) {
+    const outers = el.members
+      .filter(m => m.role === 'outer' && m.geometry?.length)
+      .map(m => wayCoords(m.geometry))
+      .filter(isClosedRing)
+
+    if (outers.length > 0) {
+      return {
+        type: 'Feature',
+        geometry: { type: 'MultiPolygon', coordinates: outers.map(ring => [ring]) },
+        properties: props,
+      }
     }
 
-    return [{
-      type: 'Feature',
-      geometry: { type: 'Point', coordinates },
-      properties: {
-        id:      `${el.type}/${el.id}`,
-        name:    el.tags?.name ?? el.tags?.['name:en'] ?? layerName,
-        amenity: el.tags?.amenity ?? '',
-        osm_id:  el.id,
-        osm_type: el.type,
-        // Preserve useful tags for popups
-        phone:    el.tags?.phone ?? el.tags?.contact?.phone ?? null,
-        website:  el.tags?.website ?? el.tags?.contact?.website ?? null,
-        operator: el.tags?.operator ?? null,
-        ...el.tags,
-      },
-    }]
-  })
+    // Relation without usable outer geometry — use center point if present
+    if (el.center) {
+      return {
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [el.center.lon, el.center.lat] },
+        properties: props,
+      }
+    }
+  }
+
+  return null // element had no usable geometry
+}
+
+// ─── Convert full Overpass JSON response → GeoJSON FeatureCollection ──────────
+
+function toGeoJSON(data, layerName) {
+  const features = (data.elements ?? [])
+    .map(el => elementToFeature(el, layerName))
+    .filter(Boolean)
 
   return { type: 'FeatureCollection', features }
 }
 
-// ─── Main fetch ───────────────────────────────────────────────────────────────
+// ─── Main export ─────────────────────────────────────────────────────────────
 // bbox: [west, south, east, north]
 // filters: string[] from OSM_LAYERS[n].filters
-// Returns a GeoJSON FeatureCollection
+// Returns a GeoJSON FeatureCollection with real polygon/line geometry
 
 export async function fetchOSMLayer(bbox, filters, layerName) {
   const query = buildQuery(bbox, filters)
@@ -131,11 +187,11 @@ export async function fetchOSMLayer(bbox, filters, layerName) {
         method:  'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body,
+        signal: AbortSignal.timeout(65_000), // slightly longer than Overpass timeout
       })
       if (!res.ok) throw new Error(`Overpass returned ${res.status}`)
       const json = await res.json()
-      const geojson = toGeoJSON(json, layerName)
-      return geojson
+      return toGeoJSON(json, layerName)
     } catch (e) {
       lastErr = e
     }
