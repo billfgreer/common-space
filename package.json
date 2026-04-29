@@ -8,10 +8,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@tmcw/togeojson": "^7.1.2",
     "maplibre-gl": "^4.5.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^7.14.2"
+    "react-router-dom": "^7.14.2",
+    "shpjs": "^6.2.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",

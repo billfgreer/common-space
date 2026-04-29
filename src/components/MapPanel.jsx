@@ -1,10 +1,17 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { cogTileUrl } from '../lib/titiler.js'
+import { parseVectorFiles } from '../lib/vectorParse.js'
 import styles from './MapPanel.module.css'
 
 const SOURCE_ID = 'footprints'
+
+// Colour palette for successive uploaded layers
+const UPLOAD_COLORS = [
+  '#e74c3c', '#3498db', '#2ecc71', '#f39c12',
+  '#9b59b6', '#1abc9c', '#e67e22', '#e91e63',
+]
 
 function buildGeoJSON(items, eventDate) {
   const eventMs = eventDate ? new Date(eventDate).getTime() : null
@@ -15,9 +22,7 @@ function buildGeoJSON(items, eventDate) {
       .map(i => {
         const timing = !eventMs || !i.datetime
           ? 'after'
-          : i.datetime.getTime() <= eventMs
-          ? 'before'
-          : 'after'
+          : i.datetime.getTime() <= eventMs ? 'before' : 'after'
         return {
           type: 'Feature',
           geometry: i.geometry,
@@ -27,10 +32,24 @@ function buildGeoJSON(items, eventDate) {
   }
 }
 
+// ─── UploadButton ─────────────────────────────────────────────────────────────
+
+const UploadIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+    <polyline points="17 8 12 3 7 8"/>
+    <line x1="12" y1="3" x2="12" y2="15"/>
+  </svg>
+)
+
+// ─── MapPanel ─────────────────────────────────────────────────────────────────
+
 export default function MapPanel({ event, items, hoveredId, selectedItems, previewRequest, onItemClick }) {
-  const containerRef   = useRef(null)
-  const mapRef         = useRef(null)
-  const initialised    = useRef(false)
+  const containerRef = useRef(null)
+  const mapRef       = useRef(null)
+  const initialised  = useRef(false)
+  const fileInputRef = useRef(null)
 
   // Stable refs so map event handlers never capture stale props
   const itemsRef       = useRef(items)
@@ -41,14 +60,23 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
 
   const [showBefore, setShowBefore] = useState(true)
   const [showAfter,  setShowAfter]  = useState(true)
+  const [showPreview, setShowPreview] = useState(true)
 
-  useEffect(() => { itemsRef.current       = items       }, [items])
-  useEffect(() => { eventRef.current       = event       }, [event])
-  useEffect(() => { onItemClickRef.current = onItemClick }, [onItemClick])
-  useEffect(() => { showBeforeRef.current  = showBefore  }, [showBefore])
-  useEffect(() => { showAfterRef.current   = showAfter   }, [showAfter])
+  // Uploaded vector layers: [{ id, name, color, visible, featureCount }]
+  const [uploadedLayers, setUploadedLayers]   = useState([])
+  const [uploadError, setUploadError]         = useState(null)
+  const [uploading, setUploading]             = useState(false)
+  const [isDragging, setIsDragging]           = useState(false)
+  const uploadedLayersRef = useRef([])
 
-  // ── Init map once ─────────────────────────────────────
+  useEffect(() => { itemsRef.current        = items       }, [items])
+  useEffect(() => { eventRef.current        = event       }, [event])
+  useEffect(() => { onItemClickRef.current  = onItemClick }, [onItemClick])
+  useEffect(() => { showBeforeRef.current   = showBefore  }, [showBefore])
+  useEffect(() => { showAfterRef.current    = showAfter   }, [showAfter])
+  useEffect(() => { uploadedLayersRef.current = uploadedLayers }, [uploadedLayers])
+
+  // ── Init map once ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (initialised.current) return
     initialised.current = true
@@ -90,7 +118,6 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
         paint: { 'fill-color': 'rgba(200,57,138,.25)', 'fill-opacity': 1 },
       })
 
-      // ── Click polygon → preview item on map ───────────
       map.on('click', 'fp-fill', e => {
         const feature = e.features?.[0]
         if (!feature) return
@@ -109,7 +136,7 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Footprints — update geometry + timing when items/event change ──
+  // ── Footprints ────────────────────────────────────────────────────────────
   useEffect(() => {
     const map = mapRef.current
     if (!map) return
@@ -121,14 +148,14 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
     else { map.once('load', update); return () => map.off('load', update) }
   }, [items, event])
 
-  // ── Hover highlight ───────────────────────────────────
+  // ── Hover highlight ───────────────────────────────────────────────────────
   useEffect(() => {
     const map = mapRef.current
     if (!map || !map.isStyleLoaded()) return
     map.setFilter('fp-hover', ['==', 'id', hoveredId || ''])
   }, [hoveredId])
 
-  // ── Selected highlight ────────────────────────────────
+  // ── Selected highlight ────────────────────────────────────────────────────
   useEffect(() => {
     const map = mapRef.current
     if (!map || !map.isStyleLoaded()) return
@@ -136,7 +163,7 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
     map.setFilter('fp-selected', ids.length ? ['in', ['get', 'id'], ['literal', ids]] : ['==', 'id', ''])
   }, [selectedItems])
 
-  // ── Before COG layer ──────────────────────────────────
+  // ── Before COG layer ──────────────────────────────────────────────────────
   useEffect(() => {
     const map = mapRef.current
     if (!map) return
@@ -145,23 +172,19 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
       try { if (map.getSource('cog-before'))      map.removeSource('cog-before')      } catch {}
       if (!selectedItems.before?.cogUrl) return
       try {
-        // Insert below after-cog-layer (if present), otherwise below footprints
         const anchor = map.getLayer('after-cog-layer') ? 'after-cog-layer'
-                     : map.getLayer('fp-fill')         ? 'fp-fill'
-                     : undefined
+                     : map.getLayer('fp-fill')         ? 'fp-fill' : undefined
         map.addSource('cog-before', { type: 'raster', tiles: [cogTileUrl(selectedItems.before.cogUrl)], tileSize: 256 })
-        map.addLayer({
-          id: 'before-cog-layer', type: 'raster', source: 'cog-before',
+        map.addLayer({ id: 'before-cog-layer', type: 'raster', source: 'cog-before',
           layout: { visibility: showBeforeRef.current ? 'visible' : 'none' },
-          paint: { 'raster-opacity': 0.9 },
-        }, anchor)
+          paint: { 'raster-opacity': 0.9 } }, anchor)
       } catch (e) { console.warn('before COG layer error:', e) }
     }
     if (map.isStyleLoaded()) apply()
     else { map.once('load', apply); return () => map.off('load', apply) }
   }, [selectedItems.before]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── After COG layer ───────────────────────────────────
+  // ── After COG layer ───────────────────────────────────────────────────────
   useEffect(() => {
     const map = mapRef.current
     if (!map) return
@@ -172,51 +195,44 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
       try {
         const anchor = map.getLayer('fp-fill') ? 'fp-fill' : undefined
         map.addSource('cog-after', { type: 'raster', tiles: [cogTileUrl(selectedItems.after.cogUrl)], tileSize: 256 })
-        map.addLayer({
-          id: 'after-cog-layer', type: 'raster', source: 'cog-after',
+        map.addLayer({ id: 'after-cog-layer', type: 'raster', source: 'cog-after',
           layout: { visibility: showAfterRef.current ? 'visible' : 'none' },
-          paint: { 'raster-opacity': 0.9 },
-        }, anchor)
+          paint: { 'raster-opacity': 0.9 } }, anchor)
       } catch (e) { console.warn('after COG layer error:', e) }
     }
     if (map.isStyleLoaded()) apply()
     else { map.once('load', apply); return () => map.off('load', apply) }
   }, [selectedItems.after]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Toggle before visibility ──────────────────────────
+  // ── COG toggle visibility ─────────────────────────────────────────────────
   useEffect(() => {
     const map = mapRef.current
     if (!map || !map.isStyleLoaded()) return
     try { map.setLayoutProperty('before-cog-layer', 'visibility', showBefore ? 'visible' : 'none') } catch {}
   }, [showBefore])
 
-  // ── Toggle after visibility ───────────────────────────
   useEffect(() => {
     const map = mapRef.current
     if (!map || !map.isStyleLoaded()) return
     try { map.setLayoutProperty('after-cog-layer', 'visibility', showAfter ? 'visible' : 'none') } catch {}
   }, [showAfter])
 
-  // ── Preview: fitBounds then load COG — single effect keyed on previewRequest ──
+  // ── Preview: fitBounds then load COG ─────────────────────────────────────
   useEffect(() => {
     const map = mapRef.current
     if (!map) return
     const item = previewRequest?.item
 
     const apply = () => {
-      // 1. Tear down any existing preview layer
       try { if (map.getLayer('preview-cog-layer')) map.removeLayer('preview-cog-layer') } catch {}
       try { if (map.getSource('cog-preview'))      map.removeSource('cog-preview')      } catch {}
-
       if (!item) return
 
-      // 2. Pan + zoom to the image extent first
       if (item.bbox?.length === 4) {
         const [minX, minY, maxX, maxY] = item.bbox
         map.fitBounds([[minX, minY], [maxX, maxY]], { padding: 60, duration: 600, maxZoom: 16 })
       }
 
-      // 3. Load the COG tile layer (after a short delay so the map has started moving)
       if (!item.cogUrl) return
       setTimeout(() => {
         if (!mapRef.current) return
@@ -224,20 +240,12 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
         try { if (map.getSource('cog-preview'))      map.removeSource('cog-preview')      } catch {}
         try {
           const anchor = map.getLayer('fp-line') ? 'fp-line' : map.getLayer('fp-fill') ? 'fp-fill' : undefined
-          map.addSource('cog-preview', {
-            type: 'raster',
-            tiles: [cogTileUrl(item.cogUrl)],
-            tileSize: 256,
-          })
-          map.addLayer({
-            id: 'preview-cog-layer', type: 'raster', source: 'cog-preview',
-            layout: { visibility: 'visible' },
-            paint: { 'raster-opacity': 0.95 },
-          }, anchor)
+          map.addSource('cog-preview', { type: 'raster', tiles: [cogTileUrl(item.cogUrl)], tileSize: 256 })
+          map.addLayer({ id: 'preview-cog-layer', type: 'raster', source: 'cog-preview',
+            layout: { visibility: 'visible' }, paint: { 'raster-opacity': 0.95 } }, anchor)
         } catch (e) { console.warn('preview COG layer error:', e) }
       }, 100)
 
-      // 4. Always reset the toggle to visible when a new item is previewed
       setShowPreview(true)
     }
 
@@ -245,7 +253,13 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
     else { map.once('load', apply); return () => map.off('load', apply) }
   }, [previewRequest]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Fly to event ──────────────────────────────────────
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !map.isStyleLoaded()) return
+    try { map.setLayoutProperty('preview-cog-layer', 'visibility', showPreview ? 'visible' : 'none') } catch {}
+  }, [showPreview])
+
+  // ── Fly to event ──────────────────────────────────────────────────────────
   useEffect(() => {
     const map = mapRef.current
     if (!map || !event) return
@@ -254,27 +268,131 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
     else { map.once('load', fly) }
   }, [event?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Uploaded vector layers — sync to MapLibre ────────────────────────────
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !map.isStyleLoaded()) return
+
+    for (const layer of uploadedLayers) {
+      const fillId   = `upload-fill-${layer.id}`
+      const lineId   = `upload-line-${layer.id}`
+      const circleId = `upload-circle-${layer.id}`
+      const srcId    = `upload-src-${layer.id}`
+      const vis      = layer.visible ? 'visible' : 'none'
+
+      // Source already added — just toggle visibility
+      if (map.getSource(srcId)) {
+        try { map.setLayoutProperty(fillId,   'visibility', vis) } catch {}
+        try { map.setLayoutProperty(lineId,   'visibility', vis) } catch {}
+        try { map.setLayoutProperty(circleId, 'visibility', vis) } catch {}
+        continue
+      }
+
+      // Add new source + layers
+      try {
+        map.addSource(srcId, { type: 'geojson', data: layer.geojson })
+
+        map.addLayer({
+          id: fillId, type: 'fill', source: srcId,
+          filter: ['==', ['geometry-type'], 'Polygon'],
+          layout: { visibility: vis },
+          paint: { 'fill-color': layer.color, 'fill-opacity': 0.2 },
+        })
+        map.addLayer({
+          id: lineId, type: 'line', source: srcId,
+          filter: ['any', ['==', ['geometry-type'], 'Polygon'], ['==', ['geometry-type'], 'LineString'],
+                          ['==', ['geometry-type'], 'MultiPolygon'], ['==', ['geometry-type'], 'MultiLineString']],
+          layout: { visibility: vis },
+          paint: { 'line-color': layer.color, 'line-width': 2, 'line-opacity': 0.9 },
+        })
+        map.addLayer({
+          id: circleId, type: 'circle', source: srcId,
+          filter: ['any', ['==', ['geometry-type'], 'Point'], ['==', ['geometry-type'], 'MultiPoint']],
+          layout: { visibility: vis },
+          paint: { 'circle-radius': 5, 'circle-color': layer.color, 'circle-stroke-width': 1.5, 'circle-stroke-color': '#fff' },
+        })
+      } catch (e) { console.warn('upload layer error:', e) }
+    }
+  }, [uploadedLayers])
+
+  // ── File parsing ──────────────────────────────────────────────────────────
+  const handleFiles = useCallback(async (files) => {
+    if (!files?.length) return
+    setUploadError(null)
+    setUploading(true)
+    try {
+      const { name, geojson } = await parseVectorFiles(files)
+      const map   = mapRef.current
+      const color = UPLOAD_COLORS[uploadedLayersRef.current.length % UPLOAD_COLORS.length]
+      const id    = `${Date.now()}`
+      const featureCount = geojson.features?.length ?? 0
+
+      // Zoom to layer bounds
+      if (map && featureCount > 0) {
+        const coords = []
+        geojson.features.forEach(f => collectCoords(f.geometry, coords))
+        if (coords.length) {
+          const lngs = coords.map(c => c[0]), lats = coords.map(c => c[1])
+          const bounds = [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]]
+          const apply = () => map.fitBounds(bounds, { padding: 60, duration: 700, maxZoom: 16 })
+          if (map.isStyleLoaded()) apply()
+          else map.once('load', apply)
+        }
+      }
+
+      setUploadedLayers(prev => [...prev, { id, name, color, visible: true, featureCount, geojson }])
+    } catch (err) {
+      setUploadError(err.message)
+    } finally {
+      setUploading(false)
+    }
+  }, [])
+
+  function removeLayer(layerId) {
+    const map = mapRef.current
+    if (map && map.isStyleLoaded()) {
+      try { map.removeLayer(`upload-fill-${layerId}`)   } catch {}
+      try { map.removeLayer(`upload-line-${layerId}`)   } catch {}
+      try { map.removeLayer(`upload-circle-${layerId}`) } catch {}
+      try { map.removeSource(`upload-src-${layerId}`)   } catch {}
+    }
+    setUploadedLayers(prev => prev.filter(l => l.id !== layerId))
+  }
+
+  function toggleLayer(layerId) {
+    setUploadedLayers(prev => prev.map(l => l.id === layerId ? { ...l, visible: !l.visible } : l))
+  }
+
+  // Drag-and-drop onto the map container
+  function onDragOver(e) { e.preventDefault(); setIsDragging(true) }
+  function onDragLeave()  { setIsDragging(false) }
+  function onDrop(e)      { e.preventDefault(); setIsDragging(false); handleFiles(e.dataTransfer.files) }
+
   const previewItem = previewRequest?.item ?? null
   const hasBefore   = !!selectedItems?.before
   const hasAfter    = !!selectedItems?.after
   const hasPreview  = !!previewItem?.cogUrl
 
-  const [showPreview, setShowPreview] = useState(true)
-  const showPreviewRef = useRef(true)
-  useEffect(() => { showPreviewRef.current = showPreview }, [showPreview])
-
-  // Toggle preview layer visibility
-  useEffect(() => {
-    const map = mapRef.current
-    if (!map || !map.isStyleLoaded()) return
-    try { map.setLayoutProperty('preview-cog-layer', 'visibility', showPreview ? 'visible' : 'none') } catch {}
-  }, [showPreview])
-
   return (
-    <div className={styles.wrap}>
+    <div
+      className={`${styles.wrap} ${isDragging ? styles.dragging : ''}`}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+    >
       <div ref={containerRef} className={styles.map} />
 
-      {/* Layer toggles */}
+      {/* Drag overlay */}
+      {isDragging && (
+        <div className={styles.dragOverlay}>
+          <div className={styles.dragBox}>
+            <UploadIcon />
+            <span>Drop vector file to add layer</span>
+          </div>
+        </div>
+      )}
+
+      {/* ── Top-left: COG layer toggles ── */}
       {(hasPreview || hasBefore || hasAfter) && (
         <div className={styles.toggleBar}>
           {hasPreview && (
@@ -293,34 +411,94 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
             <button
               className={[styles.toggleBtn, styles.toggleBefore, showBefore ? '' : styles.toggleOff].filter(Boolean).join(' ')}
               onClick={() => setShowBefore(v => !v)}
-              title={showBefore ? 'Hide before imagery' : 'Show before imagery'}
+              title="Toggle before imagery"
             >
-              <span className={styles.toggleDot} />
-              Before
+              <span className={styles.toggleDot} />Before
             </button>
           )}
           {hasAfter && (
             <button
               className={[styles.toggleBtn, styles.toggleAfter, showAfter ? '' : styles.toggleOff].filter(Boolean).join(' ')}
               onClick={() => setShowAfter(v => !v)}
-              title={showAfter ? 'Hide after imagery' : 'Show after imagery'}
+              title="Toggle after imagery"
             >
-              <span className={styles.toggleDot} />
-              After
+              <span className={styles.toggleDot} />After
             </button>
           )}
         </div>
       )}
 
+      {/* ── Bottom-left: Uploaded layers panel ── */}
+      <div className={styles.layerPanel}>
+
+        {/* Upload layers list */}
+        {uploadedLayers.length > 0 && (
+          <div className={styles.layerList}>
+            {uploadedLayers.map(layer => (
+              <div key={layer.id} className={styles.layerRow}>
+                <button
+                  className={`${styles.layerToggle} ${!layer.visible ? styles.layerToggleOff : ''}`}
+                  onClick={() => toggleLayer(layer.id)}
+                  title={layer.visible ? 'Hide layer' : 'Show layer'}
+                >
+                  <span className={styles.layerSwatch} style={{ background: layer.color }} />
+                  <span className={styles.layerName}>{layer.name}</span>
+                  <span className={styles.layerCount}>{layer.featureCount}</span>
+                </button>
+                <button className={styles.layerRemove} onClick={() => removeLayer(layer.id)} title="Remove layer">✕</button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Upload error */}
+        {uploadError && (
+          <div className={styles.uploadError}>
+            <span>{uploadError}</span>
+            <button onClick={() => setUploadError(null)}>✕</button>
+          </div>
+        )}
+
+        {/* Upload button */}
+        <button
+          className={`${styles.uploadBtn} ${uploading ? styles.uploadBtnBusy : ''}`}
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+          title="Upload GeoJSON, KML, or Shapefile"
+        >
+          <UploadIcon />
+          {uploading ? 'Parsing…' : 'Add Layer'}
+        </button>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept=".geojson,.json,.kml,.gpx,.shp,.dbf,.prj,.zip"
+          style={{ display: 'none' }}
+          onChange={e => { handleFiles(e.target.files); e.target.value = '' }}
+        />
+      </div>
+
       {/* Legend */}
       <div className={styles.legend}>
-        <span className={styles.legendItem}>
-          <span className={`${styles.dot} ${styles.before}`} />Before
-        </span>
-        <span className={styles.legendItem}>
-          <span className={`${styles.dot} ${styles.after}`} />After
-        </span>
+        <span className={styles.legendItem}><span className={`${styles.dot} ${styles.before}`} />Before</span>
+        <span className={styles.legendItem}><span className={`${styles.dot} ${styles.after}`} />After</span>
       </div>
     </div>
   )
+}
+
+// ─── Helper: collect all coordinate pairs from a geometry ─────────────────────
+function collectCoords(geom, out) {
+  if (!geom) return
+  switch (geom.type) {
+    case 'Point':              out.push(geom.coordinates); break
+    case 'MultiPoint':
+    case 'LineString':         geom.coordinates.forEach(c => out.push(c)); break
+    case 'MultiLineString':
+    case 'Polygon':            geom.coordinates.forEach(r => r.forEach(c => out.push(c))); break
+    case 'MultiPolygon':       geom.coordinates.forEach(p => p.forEach(r => r.forEach(c => out.push(c)))); break
+    case 'GeometryCollection': geom.geometries?.forEach(g => collectCoords(g, out)); break
+  }
 }

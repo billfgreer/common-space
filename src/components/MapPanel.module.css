@@ -46,9 +46,132 @@
   flex-shrink: 0;
 }
 
-.legend {
+/* ─── Drag-and-drop overlay ───────────────────────────────────────────────── */
+
+.dragging { outline: 3px dashed var(--cyan); outline-offset: -3px; }
+
+.dragOverlay {
+  position: absolute; inset: 0;
+  background: rgba(10,175,184,.12);
+  z-index: 20;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none;
+}
+
+.dragBox {
+  background: rgba(255,255,255,.95);
+  border: 2px dashed var(--cyan);
+  border-radius: 16px;
+  padding: 28px 40px;
+  display: flex; align-items: center; gap: 12px;
+  font-size: 15px; font-weight: 700; color: var(--ink);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 8px 32px rgba(0,0,0,.15);
+}
+
+/* ─── Layer panel (bottom-left) ───────────────────────────────────────────── */
+
+.layerPanel {
   position: absolute;
   bottom: 20px; left: 12px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.layerList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 220px;
+}
+
+.layerRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.layerToggle {
+  flex: 1;
+  display: flex; align-items: center; gap: 7px;
+  background: rgba(255,255,255,.92);
+  border: 1.5px solid var(--border);
+  border-radius: 7px;
+  padding: 5px 9px;
+  font-size: 11px; font-weight: 600; color: var(--ink);
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 1px 6px rgba(0,0,0,.12);
+  transition: opacity .15s;
+  min-width: 0;
+}
+.layerToggle:hover { border-color: var(--ink-mid); }
+.layerToggleOff { opacity: 0.45; }
+
+.layerSwatch {
+  width: 10px; height: 10px; border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.layerName {
+  flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  text-align: left;
+}
+
+.layerCount {
+  font-size: 10px; color: var(--ink-soft);
+  background: var(--bg); border-radius: 10px; padding: 1px 6px;
+  flex-shrink: 0;
+}
+
+.layerRemove {
+  width: 22px; height: 22px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,.88);
+  border: 1.5px solid var(--border);
+  border-radius: 5px;
+  font-size: 10px; color: var(--ink-soft);
+  cursor: pointer; flex-shrink: 0;
+  transition: background .12s, color .12s;
+  backdrop-filter: blur(4px);
+}
+.layerRemove:hover { background: #fee2e2; color: #dc2626; border-color: #fca5a5; }
+
+.uploadBtn {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 11px; font-weight: 700;
+  padding: 7px 13px; border-radius: 8px;
+  background: rgba(255,255,255,.92);
+  border: 1.5px solid var(--border);
+  color: var(--ink);
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 2px 8px rgba(0,0,0,.14);
+  transition: border-color .12s, background .12s;
+  white-space: nowrap;
+}
+.uploadBtn:hover:not(:disabled) { border-color: var(--cyan); background: rgba(255,255,255,.97); }
+.uploadBtnBusy { opacity: .6; cursor: default; }
+
+.uploadError {
+  display: flex; align-items: flex-start; gap: 8px;
+  background: #fef2f2;
+  border: 1.5px solid #fca5a5;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 11px; color: #dc2626;
+  max-width: 220px;
+  backdrop-filter: blur(4px);
+}
+.uploadError span { flex: 1; line-height: 1.4; }
+.uploadError button { color: #dc2626; font-size: 12px; flex-shrink: 0; margin-top: -1px; }
+
+.legend {
+  position: absolute;
+  bottom: 20px; right: 12px;
   background: var(--ink);
   border-radius: 8px;
   padding: 8px 14px;
@@ -69,3 +192,4 @@
 .dot { width: 10px; height: 10px; border-radius: 2px; }
 .before { background: var(--yellow); }
 .after  { background: var(--cyan); }
+
