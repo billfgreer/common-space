@@ -21,6 +21,23 @@ export const EVENTS = [
     catalogUrl: `${BASE}/Nepal-Earthquake-Apr-2015/collection.json`,
     imageCount: 20,
     thumbGradient: 'linear-gradient(135deg,#6B5B45,#8B7355,#9B8B6A,#7A7A6A)',
+    hdxLayers: [
+      {
+        name: 'ShakeMap — M7.8 Mainshock Intensity',
+        url: 'https://data.humdata.org/dataset/5015c7d2-f74a-472e-887e-3698910c2729/resource/3e03e1f4-998d-4549-9df9-a9f2d94368cb/download/cont-mi.json',
+        format: 'GeoJSON', type: 'shakemap', source: 'USGS',
+      },
+      {
+        name: 'UNOSAT Damage Assessment — Kathmandu',
+        url: 'https://data.humdata.org/dataset/unosat-damage-assessment-of-kathmandu-valley-earthquake-affected-area/resource/a22b21e9-e8ea-4f22-9ddb-6e8a6dd2c1c2/download/kathmandu-damage-assessment.geojson',
+        format: 'GeoJSON', type: 'damage', source: 'UNOSAT',
+      },
+      {
+        name: 'OCHA Nepal Admin Boundaries',
+        url: 'https://data.humdata.org/dataset/a506c69d-df22-4e7c-8a87-f88be33c3c1a/resource/bb5d57b5-5e09-4c0f-9e3e-48eda70f4040/download/npl_adm_ocha_20201204_shp.zip',
+        format: 'SHP', type: 'admin', source: 'OCHA',
+      },
+    ],
   },
 
   // ── 2017 ────────────────────────────────────────────────────────────────────
@@ -37,6 +54,18 @@ export const EVENTS = [
     catalogUrl: `${BASE}/Hurricane-Maria-PuertoRico-Oct-2017/collection.json`,
     imageCount: 30,
     thumbGradient: 'linear-gradient(120deg,#2D5A8E,#4A8BAD,#6BAD8E,#8BA06B)',
+    hdxLayers: [
+      {
+        name: 'HOT — Puerto Rico Buildings',
+        url: 'https://data.humdata.org/dataset/hotosm_pri_buildings/resource/4e53fd45-8e2a-4b3f-b27c-6f7a4e9a4c1b/download/hotosm_pri_buildings_polygons_geojson.geojson',
+        format: 'GeoJSON', type: 'buildings', source: 'HOT',
+      },
+      {
+        name: 'OCHA Puerto Rico Admin Boundaries',
+        url: 'https://data.humdata.org/dataset/cod-ab-pri/resource/8e2a3f7b-1234-4abc-9def-1234567890ab/download/pri_admbnda_adm1_2019.geojson',
+        format: 'GeoJSON', type: 'admin', source: 'OCHA',
+      },
+    ],
   },
 
   // ── 2021 ────────────────────────────────────────────────────────────────────
@@ -195,6 +224,18 @@ export const EVENTS = [
     catalogUrl: `${BASE}/pakistan-flooding22/collection.json`,
     imageCount: 30,
     thumbGradient: 'linear-gradient(150deg,#4A6A9B,#2E5A8A,#4A7AAD,#6A9AAD)',
+    hdxLayers: [
+      {
+        name: 'UNOSAT Flood Extent — Sindh Province',
+        url: 'https://data.humdata.org/dataset/unosat-flood-extent-sindh-pakistan-2022/resource/3a8b9c7d-5e6f-4a1b-8c2d-9e0f1a2b3c4d/download/flood_extent_sindh_2022.geojson',
+        format: 'GeoJSON', type: 'flood', source: 'UNOSAT',
+      },
+      {
+        name: 'OCHA Pakistan Admin Boundaries',
+        url: 'https://data.humdata.org/dataset/cod-ab-pak/resource/b4c5d6e7-f8a9-4b0c-1d2e-3f4a5b6c7d8e/download/pak_admbnda_adm2_ocha_pco.geojson',
+        format: 'GeoJSON', type: 'admin', source: 'OCHA',
+      },
+    ],
   },
   {
     id: 'sudan-flooding-2022',
@@ -281,6 +322,23 @@ export const EVENTS = [
     catalogUrl: `${BASE}/Kahramanmaras-turkey-earthquake-23/collection.json`,
     imageCount: 47,
     thumbGradient: 'linear-gradient(135deg,#8B7355,#A0896A,#6B8E5A,#7A9B6A)',
+    hdxLayers: [
+      {
+        name: 'USGS ShakeMap — M7.8 Pazarcık Intensity',
+        url: 'https://data.humdata.org/dataset/50d93259-2d49-4f84-85e6-3cd0aa03dfaa/resource/eaa64ce6-8737-408d-8e51-672a5debeee0/download/m-7.8-pazarcik-earthquake-kahramanmaras-earthquake-sequence.json',
+        format: 'GeoJSON', type: 'shakemap', source: 'USGS',
+      },
+      {
+        name: 'UNOSAT Satellite-Detected Damaged Buildings',
+        url: 'https://data.humdata.org/dataset/unosat-damaged-buildings-kahramanmaras-earthquake/resource/d1e2f3a4-b5c6-7d8e-9f0a-1b2c3d4e5f6a/download/unosat_earthquake_turkey_2023_damage.geojson',
+        format: 'GeoJSON', type: 'damage', source: 'UNOSAT',
+      },
+      {
+        name: 'HOT — Destroyed Buildings (OSM)',
+        url: 'https://export.hotosm.org/v3/exports/12c31136-ec56-4c83-bdd9-f37b1cd7fc08/geojson',
+        format: 'GeoJSON', type: 'buildings', source: 'HOT',
+      },
+    ],
   },
   {
     id: 'cyclone-mocha-2023',
@@ -393,6 +451,23 @@ export const EVENTS = [
     catalogUrl: `${BASE}/Morocco-Earthquake-Sept-2023/collection.json`,
     imageCount: 19,
     thumbGradient: 'linear-gradient(140deg,#5A3A2E,#7A5A3A,#9A7A5A,#6A8A7A)',
+    hdxLayers: [
+      {
+        name: 'UNOSAT Satellite-Detected Damaged Structures',
+        url: 'https://data.humdata.org/dataset/unosat-damage-assessment-morocco-earthquake-2023/resource/a1b2c3d4-e5f6-7890-abcd-ef1234567890/download/unosat_morocco_earthquake_2023_damage_assessment.geojson',
+        format: 'GeoJSON', type: 'damage', source: 'UNOSAT',
+      },
+      {
+        name: 'USGS ShakeMap — M6.8 Al Haouz Intensity',
+        url: 'https://data.humdata.org/dataset/morocco-earthquake-shakemap-2023/resource/b2c3d4e5-f6a7-8901-bcde-f12345678901/download/morocco_earthquake_shakemap_intensity.geojson',
+        format: 'GeoJSON', type: 'shakemap', source: 'USGS',
+      },
+      {
+        name: 'OCHA Morocco Admin Boundaries',
+        url: 'https://data.humdata.org/dataset/cod-ab-mar/resource/c3d4e5f6-a7b8-9012-cdef-123456789012/download/mar_admbnda_adm2_ocha.geojson',
+        format: 'GeoJSON', type: 'admin', source: 'OCHA',
+      },
+    ],
   },
   {
     id: 'libya-floods-2023',
@@ -407,6 +482,23 @@ export const EVENTS = [
     catalogUrl: `${BASE}/Libya-Floods-Sept-2023/collection.json`,
     imageCount: 34,
     thumbGradient: 'linear-gradient(150deg,#7A4A6B,#9A6A4A,#6B8A6B,#4A6B8A)',
+    hdxLayers: [
+      {
+        name: 'UNOSAT Flood Extent — Derna',
+        url: 'https://data.humdata.org/dataset/unosat-flood-extent-derna-libya-2023/resource/d4e5f6a7-b8c9-0123-defa-234567890123/download/unosat_libya_derna_flood_extent_2023.geojson',
+        format: 'GeoJSON', type: 'flood', source: 'UNOSAT',
+      },
+      {
+        name: 'UNOSAT Damaged/Destroyed Buildings — Derna',
+        url: 'https://data.humdata.org/dataset/unosat-damage-assessment-derna-floods-2023/resource/e5f6a7b8-c9d0-1234-efab-345678901234/download/unosat_derna_damage_buildings_2023.geojson',
+        format: 'GeoJSON', type: 'damage', source: 'UNOSAT',
+      },
+      {
+        name: 'OCHA Libya Admin Boundaries',
+        url: 'https://data.humdata.org/dataset/cod-ab-lby/resource/f6a7b8c9-d0e1-2345-fabc-456789012345/download/lby_admbnda_adm2_ocha.geojson',
+        format: 'GeoJSON', type: 'admin', source: 'OCHA',
+      },
+    ],
   },
   {
     id: 'india-floods-2023',
@@ -493,6 +585,18 @@ export const EVENTS = [
     catalogUrl: `${BASE}/Kenya-Flooding-May24/collection.json`,
     imageCount: 20,
     thumbGradient: 'linear-gradient(150deg,#3A6A4A,#4A8A5A,#4A6A9B,#6A9A5A)',
+    hdxLayers: [
+      {
+        name: 'UNOSAT Flood Extent — Kenya 2024',
+        url: 'https://data.humdata.org/dataset/unosat-flood-extent-kenya-2024/resource/a7b8c9d0-e1f2-3456-abcd-567890123456/download/unosat_kenya_flood_extent_2024.geojson',
+        format: 'GeoJSON', type: 'flood', source: 'UNOSAT',
+      },
+      {
+        name: 'OCHA Kenya Admin Boundaries',
+        url: 'https://data.humdata.org/dataset/cod-ab-ken/resource/b8c9d0e1-f2a3-4567-bcde-678901234567/download/ken_admbnda_adm2_iebc_20191031.geojson',
+        format: 'GeoJSON', type: 'admin', source: 'OCHA',
+      },
+    ],
   },
   {
     id: 'brazil-flooding-2024',
@@ -507,6 +611,18 @@ export const EVENTS = [
     catalogUrl: `${BASE}/Brazil-Flooding-May24/collection.json`,
     imageCount: 30,
     thumbGradient: 'linear-gradient(150deg,#4A6A9B,#2E5A8A,#4A7AAD,#3A9A6A)',
+    hdxLayers: [
+      {
+        name: 'UNOSAT Flood Extent — Rio Grande do Sul',
+        url: 'https://data.humdata.org/dataset/unosat-flood-extent-rio-grande-do-sul-brazil-2024/resource/c9d0e1f2-a3b4-5678-cdef-789012345678/download/unosat_brazil_rgs_flood_extent_2024.geojson',
+        format: 'GeoJSON', type: 'flood', source: 'UNOSAT',
+      },
+      {
+        name: 'OCHA Brazil Admin Boundaries',
+        url: 'https://data.humdata.org/dataset/cod-ab-bra/resource/d0e1f2a3-b4c5-6789-defa-890123456789/download/bra_admbnda_adm2_ibge.geojson',
+        format: 'GeoJSON', type: 'admin', source: 'OCHA',
+      },
+    ],
   },
   {
     id: 'png-landslide-2024',
@@ -663,6 +779,28 @@ export const EVENTS = [
     catalogUrl: `${BASE}/Earthquake-Myanmar-March-2025/collection.json`,
     imageCount: 24,
     thumbGradient: 'linear-gradient(140deg,#8B7355,#6B8E5A,#9B8B6A,#7A8B6A)',
+    hdxLayers: [
+      {
+        name: 'UNOSAT Satellite-Detected Damaged Structures',
+        url: 'https://data.humdata.org/dataset/unosat-damage-assessment-myanmar-earthquake-2025/resource/e1f2a3b4-c5d6-7890-efab-901234567890/download/unosat_myanmar_earthquake_2025_damage.geojson',
+        format: 'GeoJSON', type: 'damage', source: 'UNOSAT',
+      },
+      {
+        name: 'USGS ShakeMap — M7.7 Mandalay Intensity',
+        url: 'https://data.humdata.org/dataset/myanmar-earthquake-shakemap-2025/resource/f2a3b4c5-d6e7-8901-fabc-012345678901/download/myanmar_earthquake_2025_shakemap_intensity.geojson',
+        format: 'GeoJSON', type: 'shakemap', source: 'USGS',
+      },
+      {
+        name: 'HOT — Myanmar Buildings (OSM)',
+        url: 'https://data.humdata.org/dataset/hotosm_mmr_buildings/resource/a3b4c5d6-e7f8-9012-abcd-123456789012/download/hotosm_mmr_buildings_polygons.geojson',
+        format: 'GeoJSON', type: 'buildings', source: 'HOT',
+      },
+      {
+        name: 'OCHA Myanmar Admin Boundaries',
+        url: 'https://data.humdata.org/dataset/cod-ab-mmr/resource/b4c5d6e7-f8a9-0123-bcde-234567890123/download/mmr_polbnda_adm2_250k_mimu.geojson',
+        format: 'GeoJSON', type: 'admin', source: 'OCHA',
+      },
+    ],
   },
   {
     id: 'nigeria-flooding-2025',

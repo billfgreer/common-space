@@ -1,8 +1,36 @@
 // Humanitarian Data Exchange — CKAN API
 // https://data.humdata.org/api/3
 
-const HDX_API   = 'https://data.humdata.org/api/3/action'
-const PROXY     = 'https://corsproxy.io/?url='
+const HDX_API = 'https://data.humdata.org/api/3/action'
+
+// Ordered list of CORS proxy fallbacks.
+// We try direct fetch first, then each proxy in turn until one succeeds.
+const PROXIES = [
+  url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+  url => `https://thingproxy.freeboard.io/fetch/${url}`,
+]
+
+async function fetchWithFallback(url, options = {}) {
+  // 1. Direct
+  try {
+    const res = await fetch(url, options)
+    if (res.ok) return res
+  } catch {}
+
+  // 2. Try each proxy
+  let lastErr = new Error('All proxies failed')
+  for (const makeProxy of PROXIES) {
+    try {
+      const res = await fetch(makeProxy(url), options)
+      if (res.ok) return res
+      lastErr = new Error(`Download failed (${res.status})`)
+    } catch (e) {
+      lastErr = e
+    }
+  }
+  throw lastErr
+}
 
 // Resource formats we can parse with vectorParse.js
 const GEO_FORMATS = new Set([
@@ -39,15 +67,10 @@ export async function searchHDX({ bbox, query = '', rows = 25 } = {}) {
 
   let data
   try {
-    // Try direct first (HDX may enable CORS in future)
-    const res = await fetch(apiUrl, { headers: { Accept: 'application/json' } })
-    if (!res.ok) throw new Error(`status ${res.status}`)
+    const res = await fetchWithFallback(apiUrl, { headers: { Accept: 'application/json' } })
     data = await res.json()
-  } catch {
-    // CORS proxy fallback
-    const res = await fetch(PROXY + encodeURIComponent(apiUrl))
-    if (!res.ok) throw new Error(`HDX search failed (${res.status})`)
-    data = await res.json()
+  } catch (e) {
+    throw new Error(`HDX search failed: ${e.message}`)
   }
 
   if (!data.success) throw new Error('HDX returned an error response')
@@ -80,15 +103,7 @@ export async function searchHDX({ bbox, query = '', rows = 25 } = {}) {
 // ─── Fetch a resource file ─────────────────────────────────────────────────────
 
 export async function fetchHDXResource(url) {
-  // Try direct fetch first (many HDX resources are on S3 with CORS headers)
-  try {
-    const res = await fetch(url)
-    if (res.ok) return await res.blob()
-  } catch {}
-
-  // CORS proxy fallback
-  const res = await fetch(PROXY + encodeURIComponent(url))
-  if (!res.ok) throw new Error(`Download failed (${res.status})`)
+  const res = await fetchWithFallback(url)
   return await res.blob()
 }
 

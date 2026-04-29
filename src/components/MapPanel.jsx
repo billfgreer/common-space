@@ -3,6 +3,7 @@ import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { cogTileUrl } from '../lib/titiler.js'
 import { parseVectorFiles } from '../lib/vectorParse.js'
+import { fetchHDXResource, formatToExt } from '../lib/hdx.js'
 import HDXPanel from './HDXPanel.jsx'
 import styles from './MapPanel.module.css'
 
@@ -13,6 +14,17 @@ const UPLOAD_COLORS = [
   '#e74c3c', '#3498db', '#2ecc71', '#f39c12',
   '#9b59b6', '#1abc9c', '#e67e22', '#e91e63',
 ]
+
+// Type badge colours for curated event data layers
+const TYPE_META = {
+  damage:    { label: 'Damage',    color: '#dc2626' },
+  flood:     { label: 'Flood',     color: '#2563eb' },
+  shakemap:  { label: 'ShakeMap',  color: '#7c3aed' },
+  buildings: { label: 'Buildings', color: '#d97706' },
+  roads:     { label: 'Roads',     color: '#6b7280' },
+  admin:     { label: 'Admin',     color: '#059669' },
+  population:{ label: 'Population',color: '#db2777' },
+}
 
 function buildGeoJSON(items, eventDate) {
   const eventMs = eventDate ? new Date(eventDate).getTime() : null
@@ -72,6 +84,10 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
   const [showHDX, setShowHDX]                 = useState(false)
   const [hdxAnchorRect, setHDXAnchorRect]     = useState(null)
   const uploadedLayersRef = useRef([])
+
+  // Curated event data layer state: which are loading, which have errors
+  const [hdxLayerLoading, setHdxLayerLoading] = useState({}) // key -> true
+  const [hdxLayerErrors,  setHdxLayerErrors]  = useState({}) // key -> string
 
   useEffect(() => { itemsRef.current        = items       }, [items])
   useEffect(() => { eventRef.current        = event       }, [event])
@@ -356,6 +372,24 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
     }
   }, [addLayer])
 
+  // ── Load a pre-curated event data layer from HDX ─────────────────────────
+  const handleLoadHdxLayer = useCallback(async (hdxLayer) => {
+    const key = hdxLayer.url
+    setHdxLayerLoading(prev => ({ ...prev, [key]: true }))
+    setHdxLayerErrors(prev => ({ ...prev, [key]: null }))
+    try {
+      const blob = await fetchHDXResource(hdxLayer.url)
+      const ext  = formatToExt(hdxLayer.format)
+      const file = new File([blob], `${hdxLayer.name}.${ext}`, { type: blob.type })
+      const { name, geojson } = await parseVectorFiles([file])
+      addLayer(name, geojson)
+    } catch (e) {
+      setHdxLayerErrors(prev => ({ ...prev, [key]: e.message }))
+    } finally {
+      setHdxLayerLoading(prev => ({ ...prev, [key]: false }))
+    }
+  }, [addLayer])
+
   function removeLayer(layerId) {
     const map = mapRef.current
     if (map && map.isStyleLoaded()) {
@@ -438,6 +472,46 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
 
       {/* ── Bottom-left: Uploaded layers panel ── */}
       <div className={styles.layerPanel}>
+
+        {/* Curated event data layers */}
+        {event?.hdxLayers?.length > 0 && (
+          <div className={styles.eventDataSection}>
+            <div className={styles.eventDataLabel}>Event Data</div>
+            {event.hdxLayers.map(hdxLayer => {
+              const key      = hdxLayer.url
+              const isLoaded = uploadedLayers.some(l => l.name === hdxLayer.name)
+              const isLoading = hdxLayerLoading[key]
+              const err      = hdxLayerErrors[key]
+              const meta     = TYPE_META[hdxLayer.type] || { label: hdxLayer.type, color: '#6b7280' }
+              return (
+                <div key={key} className={styles.eventDataRow}>
+                  <span
+                    className={styles.eventDataType}
+                    style={{ background: `${meta.color}22`, color: meta.color, borderColor: `${meta.color}55` }}
+                  >
+                    {meta.label}
+                  </span>
+                  <span className={styles.eventDataName} title={`${hdxLayer.name} · ${hdxLayer.source}`}>
+                    {hdxLayer.name}
+                  </span>
+                  {isLoaded ? (
+                    <span className={styles.eventDataLoaded}>✓</span>
+                  ) : (
+                    <button
+                      className={styles.eventDataLoad}
+                      disabled={!!isLoading}
+                      onClick={() => handleLoadHdxLayer(hdxLayer)}
+                      title={`Load from ${hdxLayer.source}`}
+                    >
+                      {isLoading ? <span className={styles.spinnerXs} /> : 'Load'}
+                    </button>
+                  )}
+                  {err && <span className={styles.eventDataErr} title={err}>!</span>}
+                </div>
+              )
+            })}
+          </div>
+        )}
 
         {/* Upload layers list */}
         {uploadedLayers.length > 0 && (
