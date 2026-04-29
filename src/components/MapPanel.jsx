@@ -62,11 +62,13 @@ const UploadIcon = () => (
 // ─── MapPanel ─────────────────────────────────────────────────────────────────
 
 export default function MapPanel({ event, items, hoveredId, selectedItems, previewRequest, onItemClick }) {
-  const containerRef = useRef(null)
-  const mapRef       = useRef(null)
-  const initialised  = useRef(false)
-  const fileInputRef   = useRef(null)
-  const hdxBtnRef      = useRef(null)
+  const containerRef       = useRef(null)
+  const mapRef             = useRef(null)
+  const initialised        = useRef(false)
+  const fileInputRef       = useRef(null)
+  const hdxBtnRef          = useRef(null)
+  const popupRef           = useRef(null)   // reusable MapLibre popup for feature info
+  const cursorLayersRef    = useRef(new Set()) // tracks which upload src IDs have cursor handlers
 
   // Stable refs so map event handlers never capture stale props
   const itemsRef       = useRef(items)
@@ -116,6 +118,7 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
     })
     map.addControl(new maplibregl.NavigationControl(), 'top-right')
     mapRef.current = map
+    popupRef.current = new maplibregl.Popup({ closeButton: true, maxWidth: '300px' })
 
     map.on('load', () => {
       map.addSource(SOURCE_ID, { type: 'geojson', data: buildGeoJSON([], null) })
@@ -154,6 +157,20 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
       })
       map.on('mouseenter', 'fp-fill', () => { map.getCanvas().style.cursor = 'pointer' })
       map.on('mouseleave', 'fp-fill', () => { map.getCanvas().style.cursor = '' })
+
+      // Generic click handler — shows popup for any uploaded vector feature (OSM, HDX, uploads)
+      map.on('click', e => {
+        const ids = uploadedLayersRef.current.flatMap(l => [
+          `upload-fill-${l.id}`, `upload-line-${l.id}`, `upload-circle-${l.id}`,
+        ]).filter(id => { try { return !!map.getLayer(id) } catch { return false } })
+        if (!ids.length) return
+        const features = map.queryRenderedFeatures(e.point, { layers: ids })
+        if (!features.length) return
+        popupRef.current
+          .setLngLat(e.lngLat)
+          .setHTML(buildPopupHtml(features[0].properties))
+          .addTo(map)
+      })
     })
 
     return () => {
@@ -338,6 +355,15 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
           layout: { visibility: vis },
           paint: { 'circle-radius': 5, 'circle-color': layer.color, 'circle-stroke-width': 1.5, 'circle-stroke-color': '#fff' },
         })
+
+        // Pointer cursor on hover — registered once per source
+        if (!cursorLayersRef.current.has(srcId)) {
+          cursorLayersRef.current.add(srcId)
+          for (const lid of [fillId, lineId, circleId]) {
+            map.on('mouseenter', lid, () => { map.getCanvas().style.cursor = 'pointer' })
+            map.on('mouseleave', lid, () => { map.getCanvas().style.cursor = '' })
+          }
+        }
       } catch (e) { console.warn('upload layer error:', e) }
     }
   }, [uploadedLayers])
@@ -700,6 +726,89 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
       </div>
     </div>
   )
+}
+
+// ─── Helper: build HTML for the feature-info popup ───────────────────────────
+
+const OSM_LABELS = {
+  amenity: 'Type', healthcare: 'Healthcare', 'healthcare:speciality': 'Speciality',
+  social_facility: 'Facility', emergency: 'Emergency',
+  phone: 'Phone', 'contact:phone': 'Phone', 'contact:mobile': 'Mobile',
+  website: 'Website', 'contact:website': 'Website',
+  opening_hours: 'Hours', operator: 'Operator', network: 'Network',
+  capacity: 'Capacity', beds: 'Beds', description: 'Notes',
+  wheelchair: 'Wheelchair', access: 'Access', ref: 'Ref', brand: 'Brand',
+  'addr:street': 'Street', 'addr:city': 'City', 'addr:postcode': 'Postcode',
+}
+
+const OSM_PREFERRED_ORDER = [
+  'amenity', 'healthcare', 'healthcare:speciality', 'social_facility', 'emergency',
+  'operator', 'network', 'capacity', 'beds',
+  'phone', 'contact:phone', 'contact:mobile', 'website', 'contact:website',
+  'opening_hours', 'wheelchair', 'access', 'description', 'ref', 'brand',
+]
+
+function buildPopupHtml(props) {
+  const isOSM = props.osm_id != null
+  const name  = String(props.name || props.Name || props.NAME || props.amenity || 'Feature')
+
+  let rows = []
+
+  if (isOSM) {
+    const seen = new Set(['osm_id', 'osm_type', 'name', 'source', 'created_by',
+      'fixme', 'building', 'addr:housenumber'])
+
+    // Combine street address into one row
+    if (props['addr:street']) {
+      const num = props['addr:housenumber'] ? `${props['addr:housenumber']} ` : ''
+      rows.push(['Address', `${num}${props['addr:street']}`])
+      seen.add('addr:street')
+      if (props['addr:city'])     { rows.push(['City',     props['addr:city']]);     seen.add('addr:city') }
+      if (props['addr:postcode']) { rows.push(['Postcode', props['addr:postcode']]); seen.add('addr:postcode') }
+    }
+
+    // Preferred key order
+    for (const key of OSM_PREFERRED_ORDER) {
+      const val = props[key]
+      if (seen.has(key) || !val || val === '' || val === 'no') continue
+      seen.add(key)
+      let display = String(val)
+      if (key === 'phone' || key === 'contact:phone' || key === 'contact:mobile') {
+        display = `<a href="tel:${display}" style="color:#3b82f6">${display}</a>`
+      } else if (key === 'website' || key === 'contact:website') {
+        const href = display.startsWith('http') ? display : `https://${display}`
+        display = `<a href="${href}" target="_blank" rel="noopener" style="color:#3b82f6">${href.replace(/^https?:\/\//, '').replace(/\/$/, '')}</a>`
+      }
+      rows.push([OSM_LABELS[key] || key, display])
+    }
+
+    // Catch-all: any remaining useful tags not yet shown
+    for (const [k, v] of Object.entries(props)) {
+      if (seen.has(k) || !v || String(v) === '' || k.startsWith('name:') ||
+          k.startsWith('source') || k.startsWith('is_in') || k === 'building') continue
+      rows.push([k, String(v)])
+    }
+  } else {
+    // Generic GeoJSON — show all non-empty properties
+    for (const [k, v] of Object.entries(props)) {
+      if (v == null || String(v) === '') continue
+      rows.push([k, String(v)])
+    }
+  }
+
+  const td  = (content, header) =>
+    `<td style="color:${header ? '#9ca3af' : 'inherit'};font-size:${header ? '11' : '12'}px;padding:2px ${header ? '8' : '0'}px 2px 0;white-space:${header ? 'nowrap' : 'normal'};word-break:${header ? 'normal' : 'break-word'};vertical-align:top">${content}</td>`
+  const tableHtml = rows.length
+    ? `<table style="border-collapse:collapse;width:100%;margin-top:6px">${rows.map(([k, v]) => `<tr>${td(k, true)}${td(v, false)}</tr>`).join('')}</table>`
+    : ''
+  const footer = isOSM
+    ? `<div style="font-size:10px;color:#9ca3af;margin-top:6px;border-top:1px solid #f3f4f6;padding-top:4px">OSM ${props.osm_type} · ${props.osm_id}</div>`
+    : ''
+
+  return `<div style="font-family:system-ui,sans-serif;max-width:280px;line-height:1.45">
+    <div style="font-weight:600;font-size:13px;padding-bottom:5px;border-bottom:1px solid #e5e7eb">${name}</div>
+    ${tableHtml}${footer}
+  </div>`
 }
 
 // ─── Helper: collect all coordinate pairs from a geometry ─────────────────────
