@@ -493,6 +493,16 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
     setUploadedLayers(prev => prev.map(l => l.id === layerId ? { ...l, visible: !l.visible } : l))
   }
 
+  function handleColorChange(layerId, newColor) {
+    const map = mapRef.current
+    if (map) {
+      try { map.setPaintProperty(`upload-fill-${layerId}`,   'fill-color',   newColor) } catch {}
+      try { map.setPaintProperty(`upload-line-${layerId}`,   'line-color',   newColor) } catch {}
+      try { map.setPaintProperty(`upload-circle-${layerId}`, 'circle-color', newColor) } catch {}
+    }
+    setUploadedLayers(prev => prev.map(l => l.id === layerId ? { ...l, color: newColor } : l))
+  }
+
   // Drag-and-drop onto the map container
   function onDragOver(e) { e.preventDefault(); setIsDragging(true) }
   function onDragLeave()  { setIsDragging(false) }
@@ -646,12 +656,19 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
           <div className={styles.layerList}>
             {uploadedLayers.map(layer => (
               <div key={layer.id} className={styles.layerRow}>
+                <label className={styles.layerSwatch} style={{ background: layer.color }} title="Change color">
+                  <input
+                    type="color"
+                    value={layer.color}
+                    onChange={e => handleColorChange(layer.id, e.target.value)}
+                    className={styles.colorInput}
+                  />
+                </label>
                 <button
                   className={`${styles.layerToggle} ${!layer.visible ? styles.layerToggleOff : ''}`}
                   onClick={() => toggleLayer(layer.id)}
                   title={layer.visible ? 'Hide layer' : 'Show layer'}
                 >
-                  <span className={styles.layerSwatch} style={{ background: layer.color }} />
                   <span className={styles.layerName}>{layer.name}</span>
                   <span className={styles.layerCount}>{layer.featureCount}</span>
                 </button>
