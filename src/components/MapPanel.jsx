@@ -3,6 +3,7 @@ import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { cogTileUrl } from '../lib/titiler.js'
 import { parseVectorFiles } from '../lib/vectorParse.js'
+import HDXPanel from './HDXPanel.jsx'
 import styles from './MapPanel.module.css'
 
 const SOURCE_ID = 'footprints'
@@ -49,7 +50,8 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
   const containerRef = useRef(null)
   const mapRef       = useRef(null)
   const initialised  = useRef(false)
-  const fileInputRef = useRef(null)
+  const fileInputRef   = useRef(null)
+  const hdxBtnRef      = useRef(null)
 
   // Stable refs so map event handlers never capture stale props
   const itemsRef       = useRef(items)
@@ -67,6 +69,8 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
   const [uploadError, setUploadError]         = useState(null)
   const [uploading, setUploading]             = useState(false)
   const [isDragging, setIsDragging]           = useState(false)
+  const [showHDX, setShowHDX]                 = useState(false)
+  const [hdxAnchorRect, setHDXAnchorRect]     = useState(null)
   const uploadedLayersRef = useRef([])
 
   useEffect(() => { itemsRef.current        = items       }, [items])
@@ -315,38 +319,42 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
     }
   }, [uploadedLayers])
 
-  // ── File parsing ──────────────────────────────────────────────────────────
+  // ── Shared: add a parsed GeoJSON layer to the map ────────────────────────
+  const addLayer = useCallback((name, geojson) => {
+    const map   = mapRef.current
+    const color = UPLOAD_COLORS[uploadedLayersRef.current.length % UPLOAD_COLORS.length]
+    const id    = `${Date.now()}-${Math.random().toString(36).slice(2)}`
+    const featureCount = geojson.features?.length ?? 0
+
+    if (map && featureCount > 0) {
+      const coords = []
+      geojson.features.forEach(f => collectCoords(f.geometry, coords))
+      if (coords.length) {
+        const lngs = coords.map(c => c[0]), lats = coords.map(c => c[1])
+        const b = [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]]
+        const apply = () => map.fitBounds(b, { padding: 60, duration: 700, maxZoom: 16 })
+        if (map.isStyleLoaded()) apply()
+        else map.once('load', apply)
+      }
+    }
+
+    setUploadedLayers(prev => [...prev, { id, name, color, visible: true, featureCount, geojson }])
+  }, [])
+
+  // ── File upload parsing ───────────────────────────────────────────────────
   const handleFiles = useCallback(async (files) => {
     if (!files?.length) return
     setUploadError(null)
     setUploading(true)
     try {
       const { name, geojson } = await parseVectorFiles(files)
-      const map   = mapRef.current
-      const color = UPLOAD_COLORS[uploadedLayersRef.current.length % UPLOAD_COLORS.length]
-      const id    = `${Date.now()}`
-      const featureCount = geojson.features?.length ?? 0
-
-      // Zoom to layer bounds
-      if (map && featureCount > 0) {
-        const coords = []
-        geojson.features.forEach(f => collectCoords(f.geometry, coords))
-        if (coords.length) {
-          const lngs = coords.map(c => c[0]), lats = coords.map(c => c[1])
-          const bounds = [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]]
-          const apply = () => map.fitBounds(bounds, { padding: 60, duration: 700, maxZoom: 16 })
-          if (map.isStyleLoaded()) apply()
-          else map.once('load', apply)
-        }
-      }
-
-      setUploadedLayers(prev => [...prev, { id, name, color, visible: true, featureCount, geojson }])
+      addLayer(name, geojson)
     } catch (err) {
       setUploadError(err.message)
     } finally {
       setUploading(false)
     }
-  }, [])
+  }, [addLayer])
 
   function removeLayer(layerId) {
     const map = mapRef.current
@@ -459,16 +467,34 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
           </div>
         )}
 
-        {/* Upload button */}
-        <button
-          className={`${styles.uploadBtn} ${uploading ? styles.uploadBtnBusy : ''}`}
-          onClick={() => fileInputRef.current?.click()}
-          disabled={uploading}
-          title="Upload GeoJSON, KML, or Shapefile"
-        >
-          <UploadIcon />
-          {uploading ? 'Parsing…' : 'Add Layer'}
-        </button>
+        {/* Action buttons */}
+        <div className={styles.actionRow}>
+          <button
+            className={`${styles.uploadBtn} ${uploading ? styles.uploadBtnBusy : ''}`}
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            title="Upload GeoJSON, KML, or Shapefile"
+          >
+            <UploadIcon />
+            {uploading ? 'Parsing…' : 'Add Layer'}
+          </button>
+
+          <button
+            ref={hdxBtnRef}
+            className={`${styles.uploadBtn} ${showHDX ? styles.uploadBtnActive : ''}`}
+            onClick={() => {
+              const rect = hdxBtnRef.current?.getBoundingClientRect()
+              setHDXAnchorRect(rect ?? null)
+              setShowHDX(v => !v)
+            }}
+            title="Search Humanitarian Data Exchange for datasets in this area"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            HDX
+          </button>
+        </div>
 
         <input
           ref={fileInputRef}
@@ -479,6 +505,17 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
           onChange={e => { handleFiles(e.target.files); e.target.value = '' }}
         />
       </div>
+
+      {/* HDX search panel — rendered via portal, positioned above the button */}
+      {showHDX && (
+        <HDXPanel
+          anchorRect={hdxAnchorRect}
+          bounds={mapRef.current?.getBounds?.() ?? null}
+          eventName={event?.name ?? ''}
+          onAdd={(name, geojson) => { addLayer(name, geojson); setShowHDX(false) }}
+          onClose={() => setShowHDX(false)}
+        />
+      )}
 
       {/* Legend */}
       <div className={styles.legend}>
