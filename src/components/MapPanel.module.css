@@ -250,11 +250,23 @@
 .keySave:hover:not(:disabled) { filter: brightness(1.08); }
 .keySave:disabled { opacity: .45; cursor: default; }
 
-/* CivAPI emoji icon */
-.civapiIcon {
+/* OSM layer icon and badge */
+.osmIcon {
   font-size: 11px;
   flex-shrink: 0;
   line-height: 1;
+}
+
+.osmBadge {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .3px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: #f0fdf4;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+  text-transform: none;
 }
 
 .eventDataItem {

@@ -4,7 +4,7 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 import { cogTileUrl } from '../lib/titiler.js'
 import { parseVectorFiles } from '../lib/vectorParse.js'
 import { fetchHDXResource, fetchUSGSShakeMap, formatToExt } from '../lib/hdx.js'
-import { getCivapiKey, setCivapiKey, fetchInfrastructure, CIVAPI_LAYERS } from '../lib/civapi.js'
+import { fetchOSMLayer, OSM_LAYERS } from '../lib/osm.js'
 import { MAPLIBRE_STYLE } from '../lib/constants.js'
 import { formatPlatform } from '../lib/utils.js'
 import HDXPanel from './HDXPanel.jsx'
@@ -92,12 +92,9 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
   const [hdxLayerLoading, setHdxLayerLoading] = useState({}) // key -> true
   const [hdxLayerErrors,  setHdxLayerErrors]  = useState({}) // key -> string
 
-  // CivAPI state
-  const [civapiKey,     setCivapiKeyState] = useState(() => getCivapiKey())
-  const [civapiLoading, setCivapiLoading]  = useState({}) // layerId -> true
-  const [civapiErrors,  setCivapiErrors]   = useState({}) // layerId -> string
-  const [showKeyInput,  setShowKeyInput]   = useState(false)
-  const [keyDraft,      setKeyDraft]       = useState('')
+  // OSM layer state
+  const [osmLoading, setOsmLoading] = useState({}) // layerId -> true
+  const [osmErrors,  setOsmErrors]  = useState({}) // layerId -> string
 
   useEffect(() => { itemsRef.current        = items       }, [items])
   useEffect(() => { eventRef.current        = event       }, [event])
@@ -423,39 +420,36 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
     }
   }, [addLayer])
 
-  // ── Save CivAPI key ───────────────────────────────────────────────────────
-  function saveKey() {
-    const k = keyDraft.trim()
-    setCivapiKey(k)
-    setCivapiKeyState(k)
-    setShowKeyInput(false)
-    setKeyDraft('')
-    // Clear previous errors so user can retry after adding a key
-    setCivapiErrors({})
-  }
-
-  // ── Load a CivAPI infrastructure layer ───────────────────────────────────
-  const handleLoadCivapiLayer = useCallback(async (civLayer) => {
-    const key = civLayer.id
-    setCivapiLoading(prev => ({ ...prev, [key]: true }))
-    setCivapiErrors(prev => ({ ...prev, [key]: null }))
+  // ── Load an OSM layer via Overpass API ───────────────────────────────────
+  // Uses the event bbox; falls back to the current map viewport bounds.
+  const handleLoadOSMLayer = useCallback(async (osmLayer) => {
+    const key = osmLayer.id
+    setOsmLoading(prev => ({ ...prev, [key]: true }))
+    setOsmErrors(prev => ({ ...prev, [key]: null }))
     try {
-      if (!civapiKey) {
-        setShowKeyInput(true)
-        throw new Error('Add your CivAPI key to load this layer')
+      // Prefer the event bbox; fall back to current map view
+      let bbox
+      if (event?.bbox?.length === 4) {
+        bbox = event.bbox // [west, south, east, north]
+      } else {
+        const b = mapRef.current?.getBounds()
+        if (!b) throw new Error('Map not ready')
+        bbox = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()]
       }
-      if (!event?.country) {
-        throw new Error('No country code configured for this event')
+
+      const geojson = await fetchOSMLayer(bbox, osmLayer.filters, osmLayer.name)
+
+      if (!geojson.features?.length) {
+        throw new Error(`No ${osmLayer.name.toLowerCase()} found in this area`)
       }
-      const geojson = await fetchInfrastructure(event.country, civLayer.types, civapiKey)
-      if (!geojson.features?.length) throw new Error('No features returned — try a different layer')
-      addLayer(civLayer.name, geojson)
+
+      addLayer(`OSM · ${osmLayer.name}`, geojson)
     } catch (e) {
-      setCivapiErrors(prev => ({ ...prev, [key]: e.message }))
+      setOsmErrors(prev => ({ ...prev, [key]: e.message }))
     } finally {
-      setCivapiLoading(prev => ({ ...prev, [key]: false }))
+      setOsmLoading(prev => ({ ...prev, [key]: false }))
     }
-  }, [civapiKey, event, addLayer])
+  }, [event, addLayer])
 
   function removeLayer(layerId) {
     const map = mapRef.current
@@ -584,53 +578,32 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
           </div>
         )}
 
-        {/* CivAPI infrastructure layers */}
-        {event?.country && (
+        {/* OSM infrastructure layers via Overpass API */}
+        {event && (
           <div className={styles.eventDataSection}>
             <div className={styles.eventDataLabel}>
-              CivAPI Infrastructure
-              <button
-                className={styles.keyBtn}
-                onClick={() => { setShowKeyInput(v => !v); setKeyDraft(civapiKey) }}
-                title={civapiKey ? 'Change API key' : 'Add API key'}
-              >
-                {civapiKey ? '🔑' : '＋ Key'}
-              </button>
+              OpenStreetMap
+              <span className={styles.osmBadge}>Overpass</span>
             </div>
-
-            {showKeyInput && (
-              <div className={styles.keyInputRow}>
-                <input
-                  className={styles.keyInput}
-                  type="password"
-                  placeholder="Paste CivAPI key…"
-                  value={keyDraft}
-                  onChange={e => setKeyDraft(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && saveKey()}
-                  autoFocus
-                />
-                <button className={styles.keySave} onClick={saveKey} disabled={!keyDraft.trim()}>Save</button>
-              </div>
-            )}
-
-            {CIVAPI_LAYERS.map(civLayer => {
-              const isLoaded  = uploadedLayers.some(l => l.name === civLayer.name)
-              const isLoading = civapiLoading[civLayer.id]
-              const err       = civapiErrors[civLayer.id]
+            {OSM_LAYERS.map(osmLayer => {
+              const loaded  = uploadedLayers.some(l => l.name === `OSM · ${osmLayer.name}`)
+              const loading = osmLoading[osmLayer.id]
+              const err     = osmErrors[osmLayer.id]
               return (
-                <div key={civLayer.id} className={styles.eventDataItem}>
+                <div key={osmLayer.id} className={styles.eventDataItem}>
                   <div className={styles.eventDataRow}>
-                    <span className={styles.civapiIcon}>{civLayer.icon}</span>
-                    <span className={styles.eventDataName}>{civLayer.name}</span>
-                    {isLoaded ? (
+                    <span className={styles.osmIcon}>{osmLayer.icon}</span>
+                    <span className={styles.eventDataName}>{osmLayer.name}</span>
+                    {loaded ? (
                       <span className={styles.eventDataLoaded}>✓</span>
                     ) : (
                       <button
                         className={`${styles.eventDataLoad} ${err ? styles.eventDataLoadRetry : ''}`}
-                        disabled={!!isLoading}
-                        onClick={() => handleLoadCivapiLayer(civLayer)}
+                        disabled={!!loading}
+                        onClick={() => handleLoadOSMLayer(osmLayer)}
+                        title="Load from OpenStreetMap via Overpass API"
                       >
-                        {isLoading ? <span className={styles.spinnerXs} /> : err ? 'Retry' : 'Load'}
+                        {loading ? <span className={styles.spinnerXs} /> : err ? 'Retry' : 'Load'}
                       </button>
                     )}
                   </div>
