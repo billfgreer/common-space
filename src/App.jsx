@@ -44,9 +44,16 @@ function CompareRoute() {
 
   if (!event) return <Navigate to="/" replace />
 
-  // Retrieve the before/after items stored when Compare was triggered
+  // Retrieve the before/after items stored when Compare was triggered.
+  // JSON.stringify turns Date objects into ISO strings — revive them here.
   const stored = sessionStorage.getItem(`compare:${eventId}`)
-  const items  = stored ? JSON.parse(stored) : null
+  let items = stored ? JSON.parse(stored) : null
+  if (items) {
+    const revive = item => item
+      ? { ...item, datetime: item.datetime ? new Date(item.datetime) : null }
+      : null
+    items = { before: revive(items.before), after: revive(items.after) }
+  }
 
   if (!items?.before || !items?.after) {
     // No data — fall back to the results page for this event

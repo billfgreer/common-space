@@ -7,7 +7,10 @@ import styles from './Compare.module.css'
 
 function formatDate(date) {
   if (!date) return '—'
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  // date may be a Date object or an ISO string (e.g. after JSON round-trip)
+  const d = date instanceof Date ? date : new Date(date)
+  if (isNaN(d.getTime())) return '—'
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 // Compute intersection of two bboxes; returns null if they don't overlap
@@ -72,10 +75,9 @@ export default function Compare({ beforeItem, afterItem, event, onBack, onHome }
 
   // ── Initialize both maps ─────────────────────────────
   useEffect(() => {
-    const overlap = bboxIntersection(beforeItem?.bbox, afterItem?.bbox)
-    // If there's overlap, center on it. Otherwise center on the after item (earthquake damage).
+    const overlap   = bboxIntersection(beforeItem?.bbox, afterItem?.bbox)
     const focusBbox = overlap || afterItem?.bbox || beforeItem?.bbox
-    const view = mapViewFromBbox(focusBbox)
+    const view      = mapViewFromBbox(focusBbox)
 
     const baseStyle = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'
 
@@ -87,7 +89,6 @@ export default function Compare({ beforeItem, afterItem, event, onBack, onHome }
     })
     bMap.addControl(new maplibregl.NavigationControl(), 'top-right')
 
-    // After map is non-interactive — it just follows the before map
     const aMap = new maplibregl.Map({
       container: afterMapEl.current,
       style: baseStyle,
@@ -97,9 +98,20 @@ export default function Compare({ beforeItem, afterItem, event, onBack, onHome }
       attributionControl: false,
     })
 
-    // Fit to the focus bbox once loaded
+    // Fit to focus bbox and load both COG layers once maps are ready
     bMap.on('load', () => {
-      bMap.fitBounds([[focusBbox[0], focusBbox[1]], [focusBbox[2], focusBbox[3]]], { padding: 20, duration: 0 })
+      if (focusBbox) {
+        bMap.fitBounds(
+          [[focusBbox[0], focusBbox[1]], [focusBbox[2], focusBbox[3]]],
+          { padding: 20, duration: 0 }
+        )
+      }
+      if (beforeItem?.cogUrl) {
+        try {
+          bMap.addSource('cog-before', { type: 'raster', tiles: [cogTileUrl(beforeItem.cogUrl)], tileSize: 256 })
+          bMap.addLayer({ id: 'cog-before-layer', type: 'raster', source: 'cog-before', paint: { 'raster-opacity': 0.95 } })
+        } catch (e) { console.warn('before COG error:', e) }
+      }
     })
 
     // Sync after map whenever before map moves
@@ -115,27 +127,12 @@ export default function Compare({ beforeItem, afterItem, event, onBack, onHome }
       syncing.current = false
     })
 
-    // Add COG raster layer to before map
-    bMap.on('load', () => {
-      if (beforeItem?.cogUrl) {
-        bMap.addSource('cog-before', {
-          type: 'raster',
-          tiles: [cogTileUrl(beforeItem.cogUrl)],
-          tileSize: 256,
-        })
-        bMap.addLayer({ id: 'cog-before-layer', type: 'raster', source: 'cog-before' })
-      }
-    })
-
-    // Add COG raster layer to after map
     aMap.on('load', () => {
       if (afterItem?.cogUrl) {
-        aMap.addSource('cog-after', {
-          type: 'raster',
-          tiles: [cogTileUrl(afterItem.cogUrl)],
-          tileSize: 256,
-        })
-        aMap.addLayer({ id: 'cog-after-layer', type: 'raster', source: 'cog-after' })
+        try {
+          aMap.addSource('cog-after', { type: 'raster', tiles: [cogTileUrl(afterItem.cogUrl)], tileSize: 256 })
+          aMap.addLayer({ id: 'cog-after-layer', type: 'raster', source: 'cog-after', paint: { 'raster-opacity': 0.95 } })
+        } catch (e) { console.warn('after COG error:', e) }
       }
     })
 
