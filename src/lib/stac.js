@@ -271,7 +271,7 @@ export async function streamEventItems(catalogUrl, { maxItems = 40, eventDate, o
   }
 }
 
-export async function getEventItems(catalogUrl, maxItems = 40) {
+async function getEventItems(catalogUrl, maxItems = 40) {
   const items = []
   await streamEventItems(catalogUrl, { maxItems, onItem: item => items.push(item) })
   return items

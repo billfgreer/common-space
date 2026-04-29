@@ -3,15 +3,9 @@ import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import Header from './Header.jsx'
 import { cogTileUrl } from '../lib/titiler.js'
+import { MAPLIBRE_STYLE } from '../lib/constants.js'
+import { formatDate, formatPlatform } from '../lib/utils.js'
 import styles from './Compare.module.css'
-
-function formatDate(date) {
-  if (!date) return '—'
-  // date may be a Date object or an ISO string (e.g. after JSON round-trip)
-  const d = date instanceof Date ? date : new Date(date)
-  if (isNaN(d.getTime())) return '—'
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-}
 
 // Compute intersection of two bboxes; returns null if they don't overlap
 function bboxIntersection(a, b) {
@@ -79,11 +73,9 @@ export default function Compare({ beforeItem, afterItem, event, onBack, onHome }
     const focusBbox = overlap || afterItem?.bbox || beforeItem?.bbox
     const view      = mapViewFromBbox(focusBbox)
 
-    const baseStyle = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'
-
     const bMap = new maplibregl.Map({
       container: beforeMapEl.current,
-      style: baseStyle,
+      style: MAPLIBRE_STYLE,
       center: view.center,
       zoom: view.zoom,
     })
@@ -91,7 +83,7 @@ export default function Compare({ beforeItem, afterItem, event, onBack, onHome }
 
     const aMap = new maplibregl.Map({
       container: afterMapEl.current,
-      style: baseStyle,
+      style: MAPLIBRE_STYLE,
       center: view.center,
       zoom: view.zoom,
       interactive: false,

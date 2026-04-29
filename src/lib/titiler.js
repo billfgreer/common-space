@@ -1,4 +1,4 @@
-const TITILER_BASE = 'https://titiler.xyz'
+import { TITILER_BASE } from './constants.js'
 
 // Convert s3:// to https:// for Maxar's public S3 bucket
 export function toHttpsUrl(url) {
@@ -47,7 +47,7 @@ export function cogThumbnailTileUrl(cogUrl, bbox, zoom = 14) {
 }
 
 // Bounding box for TiTiler (used to set map bounds when item selected)
-export async function cogInfo(cogUrl) {
+async function cogInfo(cogUrl) {
   const httpsUrl = toHttpsUrl(cogUrl)
   const params = new URLSearchParams({ url: httpsUrl })
   const res = await fetch(`${TITILER_BASE}/cog/info?${params}`)

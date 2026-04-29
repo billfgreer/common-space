@@ -4,6 +4,9 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 import { cogTileUrl } from '../lib/titiler.js'
 import { parseVectorFiles } from '../lib/vectorParse.js'
 import { fetchHDXResource, fetchUSGSShakeMap, formatToExt } from '../lib/hdx.js'
+import { getCivapiKey, setCivapiKey, fetchInfrastructure, CIVAPI_LAYERS } from '../lib/civapi.js'
+import { MAPLIBRE_STYLE } from '../lib/constants.js'
+import { formatPlatform } from '../lib/utils.js'
 import HDXPanel from './HDXPanel.jsx'
 import styles from './MapPanel.module.css'
 
@@ -89,6 +92,13 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
   const [hdxLayerLoading, setHdxLayerLoading] = useState({}) // key -> true
   const [hdxLayerErrors,  setHdxLayerErrors]  = useState({}) // key -> string
 
+  // CivAPI state
+  const [civapiKey,     setCivapiKeyState] = useState(() => getCivapiKey())
+  const [civapiLoading, setCivapiLoading]  = useState({}) // layerId -> true
+  const [civapiErrors,  setCivapiErrors]   = useState({}) // layerId -> string
+  const [showKeyInput,  setShowKeyInput]   = useState(false)
+  const [keyDraft,      setKeyDraft]       = useState('')
+
   useEffect(() => { itemsRef.current        = items       }, [items])
   useEffect(() => { eventRef.current        = event       }, [event])
   useEffect(() => { onItemClickRef.current  = onItemClick }, [onItemClick])
@@ -103,7 +113,7 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
 
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
+      style: MAPLIBRE_STYLE,
       center: event?.center || [0, 20],
       zoom:   event?.zoom   || 3,
     })
@@ -413,6 +423,40 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
     }
   }, [addLayer])
 
+  // ── Save CivAPI key ───────────────────────────────────────────────────────
+  function saveKey() {
+    const k = keyDraft.trim()
+    setCivapiKey(k)
+    setCivapiKeyState(k)
+    setShowKeyInput(false)
+    setKeyDraft('')
+    // Clear previous errors so user can retry after adding a key
+    setCivapiErrors({})
+  }
+
+  // ── Load a CivAPI infrastructure layer ───────────────────────────────────
+  const handleLoadCivapiLayer = useCallback(async (civLayer) => {
+    const key = civLayer.id
+    setCivapiLoading(prev => ({ ...prev, [key]: true }))
+    setCivapiErrors(prev => ({ ...prev, [key]: null }))
+    try {
+      if (!civapiKey) {
+        setShowKeyInput(true)
+        throw new Error('Add your CivAPI key to load this layer')
+      }
+      if (!event?.country) {
+        throw new Error('No country code configured for this event')
+      }
+      const geojson = await fetchInfrastructure(event.country, civLayer.types, civapiKey)
+      if (!geojson.features?.length) throw new Error('No features returned — try a different layer')
+      addLayer(civLayer.name, geojson)
+    } catch (e) {
+      setCivapiErrors(prev => ({ ...prev, [key]: e.message }))
+    } finally {
+      setCivapiLoading(prev => ({ ...prev, [key]: false }))
+    }
+  }, [civapiKey, event, addLayer])
+
   function removeLayer(layerId) {
     const map = mapRef.current
     if (map && map.isStyleLoaded()) {
@@ -468,7 +512,7 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
             >
               <span className={styles.toggleDot} />
               {previewItem?.platform
-                ? previewItem.platform.replace('worldview-', 'WV-').replace('WorldView-', 'WV-')
+                ? formatPlatform(previewItem.platform)
                 : 'Image'}
             </button>
           )}
@@ -534,6 +578,63 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
                   {err && (
                     <div className={styles.eventDataErrMsg}>{err}</div>
                   )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {/* CivAPI infrastructure layers */}
+        {event?.country && (
+          <div className={styles.eventDataSection}>
+            <div className={styles.eventDataLabel}>
+              CivAPI Infrastructure
+              <button
+                className={styles.keyBtn}
+                onClick={() => { setShowKeyInput(v => !v); setKeyDraft(civapiKey) }}
+                title={civapiKey ? 'Change API key' : 'Add API key'}
+              >
+                {civapiKey ? '🔑' : '＋ Key'}
+              </button>
+            </div>
+
+            {showKeyInput && (
+              <div className={styles.keyInputRow}>
+                <input
+                  className={styles.keyInput}
+                  type="password"
+                  placeholder="Paste CivAPI key…"
+                  value={keyDraft}
+                  onChange={e => setKeyDraft(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && saveKey()}
+                  autoFocus
+                />
+                <button className={styles.keySave} onClick={saveKey} disabled={!keyDraft.trim()}>Save</button>
+              </div>
+            )}
+
+            {CIVAPI_LAYERS.map(civLayer => {
+              const isLoaded  = uploadedLayers.some(l => l.name === civLayer.name)
+              const isLoading = civapiLoading[civLayer.id]
+              const err       = civapiErrors[civLayer.id]
+              return (
+                <div key={civLayer.id} className={styles.eventDataItem}>
+                  <div className={styles.eventDataRow}>
+                    <span className={styles.civapiIcon}>{civLayer.icon}</span>
+                    <span className={styles.eventDataName}>{civLayer.name}</span>
+                    {isLoaded ? (
+                      <span className={styles.eventDataLoaded}>✓</span>
+                    ) : (
+                      <button
+                        className={`${styles.eventDataLoad} ${err ? styles.eventDataLoadRetry : ''}`}
+                        disabled={!!isLoading}
+                        onClick={() => handleLoadCivapiLayer(civLayer)}
+                      >
+                        {isLoading ? <span className={styles.spinnerXs} /> : err ? 'Retry' : 'Load'}
+                      </button>
+                    )}
+                  </div>
+                  {err && <div className={styles.eventDataErrMsg}>{err}</div>}
                 </div>
               )
             })}

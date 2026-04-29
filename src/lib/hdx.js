@@ -1,7 +1,7 @@
 // Humanitarian Data Exchange — CKAN API
 // https://data.humdata.org/api/3
 
-const HDX_API = 'https://data.humdata.org/api/3/action'
+import { HDX_API_BASE } from './constants.js'
 
 // Ordered list of CORS proxy fallbacks.
 // We try direct fetch first, then each proxy in turn until one succeeds.
@@ -38,7 +38,7 @@ const GEO_FORMATS = new Set([
   'shp', 'shapefile', 'zipped shapefile', 'zip',
 ])
 
-export function isGeoFormat(fmt) {
+function isGeoFormat(fmt) {
   return fmt && GEO_FORMATS.has(fmt.toLowerCase().trim())
 }
 
@@ -63,7 +63,7 @@ export async function searchHDX({ bbox, query = '', rows = 25 } = {}) {
   if (query) params.set('q', query)
   if (bbox)  params.set('ext_bbox', bbox.map(v => +v.toFixed(5)).join(','))
 
-  const apiUrl = `${HDX_API}/package_search?${params}`
+  const apiUrl = `${HDX_API_BASE}/package_search?${params}`
 
   let data
   try {

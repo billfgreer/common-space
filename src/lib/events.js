@@ -2,8 +2,7 @@
 // catalogUrl points to the event's collection.json (top-level entry point).
 // eventDate is the disaster date — items before it are BEFORE, after are AFTER.
 
-const BASE = 'https://maxar-opendata.s3.amazonaws.com/events'
-const SATELLOGIC = 'https://satellogic-earthview.s3.us-west-2.amazonaws.com/stac'
+import { MAXAR_BASE as BASE, SATELLOGIC_BASE as SATELLOGIC } from './constants.js'
 
 export const EVENTS = [
 
@@ -22,6 +21,7 @@ export const EVENTS = [
     imageCount: 20,
     thumbGradient: 'linear-gradient(135deg,#6B5B45,#8B7355,#9B8B6A,#7A7A6A)',
     impact: { deaths: 8857, displaced: 2800000, homesDestroyed: 600000, costUSD: 10000 },
+    country: 'np',
     hdxLayers: [
       {
         name: 'ShakeMap — M7.8 Mainshock Intensity',
@@ -53,6 +53,7 @@ export const EVENTS = [
     imageCount: 30,
     thumbGradient: 'linear-gradient(120deg,#2D5A8E,#4A8BAD,#6BAD8E,#8BA06B)',
     impact: { deaths: 2975, displaced: 900000, homesDestroyed: 70000, costUSD: 91000 },
+    country: 'pr',
     hdxLayers: [
       {
         name: 'Puerto Rico Admin Boundaries (ADM1)',
@@ -78,6 +79,7 @@ export const EVENTS = [
     imageCount: 25,
     thumbGradient: 'linear-gradient(160deg,#8B2500,#A03520,#C04520,#6A3010)',
     impact: { deaths: 51, displaced: 5000, homesDestroyed: 2000, costUSD: 50 },
+    country: 'id',
   },
   {
     id: 'marshall-fire-2021',
@@ -170,6 +172,7 @@ export const EVENTS = [
     imageCount: 20,
     thumbGradient: 'linear-gradient(135deg,#6B5B45,#8B7355,#9B8B6A,#7A7A6A)',
     impact: { deaths: 1163, displaced: 10000, homesDestroyed: 10000, costUSD: 15 },
+    country: 'af',
   },
   {
     id: 'yellowstone-flooding-2022',
@@ -230,6 +233,7 @@ export const EVENTS = [
     imageCount: 30,
     thumbGradient: 'linear-gradient(150deg,#4A6A9B,#2E5A8A,#4A7AAD,#6A9AAD)',
     impact: { deaths: 1739, displaced: 33000000, homesDestroyed: 1700000, costUSD: 30000 },
+    country: 'pk',
     hdxLayers: [
       {
         name: 'Pakistan Admin Boundaries (ADM1)',
@@ -330,6 +334,7 @@ export const EVENTS = [
     imageCount: 47,
     thumbGradient: 'linear-gradient(135deg,#8B7355,#A0896A,#6B8E5A,#7A9B6A)',
     impact: { deaths: 50783, displaced: 1500000, homesDestroyed: 160000, costUSD: 100000 },
+    country: 'tr',
     hdxLayers: [
       {
         name: 'ShakeMap — M7.8 Pazarcık Intensity',
@@ -359,6 +364,7 @@ export const EVENTS = [
     imageCount: 25,
     thumbGradient: 'linear-gradient(130deg,#2D6A8E,#4A9BAD,#6BAAAD,#3A7A9E)',
     impact: { deaths: 145, displaced: 800000, homesDestroyed: 76000, costUSD: 800 },
+    country: 'mm',
   },
   {
     id: 'emilia-romagna-flooding-2023',
@@ -464,6 +470,7 @@ export const EVENTS = [
     imageCount: 19,
     thumbGradient: 'linear-gradient(140deg,#5A3A2E,#7A5A3A,#9A7A5A,#6A8A7A)',
     impact: { deaths: 2960, displaced: 300000, homesDestroyed: 50000, costUSD: 1300 },
+    country: 'ma',
     hdxLayers: [
       {
         name: 'ShakeMap — M6.8 Al Haouz Intensity',
@@ -493,6 +500,7 @@ export const EVENTS = [
     imageCount: 34,
     thumbGradient: 'linear-gradient(150deg,#7A4A6B,#9A6A4A,#6B8A6B,#4A6B8A)',
     impact: { deaths: 11300, displaced: 40000, homesDestroyed: 5000, costUSD: 500 },
+    country: 'ly',
     hdxLayers: [
       {
         name: 'Libya Admin Boundaries (ADM1)',
@@ -516,6 +524,7 @@ export const EVENTS = [
     imageCount: 20,
     thumbGradient: 'linear-gradient(150deg,#4A6A9B,#2E5A8A,#4A7A6A,#6A9AAD)',
     impact: { deaths: 40, displaced: 100000, homesDestroyed: 1200, costUSD: 30 },
+    country: 'in',
   },
   {
     id: 'nepal-earthquake-2023',
@@ -531,6 +540,7 @@ export const EVENTS = [
     imageCount: 20,
     thumbGradient: 'linear-gradient(135deg,#6B5B45,#8B7355,#9B8B6A,#7A7A6A)',
     impact: { deaths: 154, displaced: 20000, homesDestroyed: 3600, costUSD: 100 },
+    country: 'np',
   },
   {
     id: 'iceland-volcano-2023',
@@ -563,6 +573,7 @@ export const EVENTS = [
     imageCount: 30,
     thumbGradient: 'linear-gradient(135deg,#6B5B45,#8B7355,#9B8B6A,#4A7AAD)',
     impact: { deaths: 241, displaced: 80000, homesDestroyed: 18000, costUSD: 1700 },
+    country: 'jp',
   },
   {
     id: 'smokehouse-creek-2024',
@@ -593,6 +604,7 @@ export const EVENTS = [
     imageCount: 20,
     thumbGradient: 'linear-gradient(150deg,#3A6A4A,#4A8A5A,#4A6A9B,#6A9A5A)',
     impact: { deaths: 210, displaced: 400000, homesDestroyed: 40000, costUSD: 300 },
+    country: 'ke',
     hdxLayers: [
       {
         name: 'Kenya Admin Boundaries (ADM1)',
@@ -616,6 +628,7 @@ export const EVENTS = [
     imageCount: 30,
     thumbGradient: 'linear-gradient(150deg,#4A6A9B,#2E5A8A,#4A7AAD,#3A9A6A)',
     impact: { deaths: 153, displaced: 415000, homesDestroyed: 400000, costUSD: 3000 },
+    country: 'br',
     hdxLayers: [
       {
         name: 'Brazil Admin Boundaries (ADM1)',
@@ -669,6 +682,7 @@ export const EVENTS = [
     imageCount: 20,
     thumbGradient: 'linear-gradient(150deg,#4A6A9B,#2E5A8A,#6A8A5A,#4A7AAD)',
     impact: { deaths: 200, displaced: 1300000, homesDestroyed: 200000, costUSD: 150 },
+    country: 'ng',
   },
   {
     id: 'nepal-floods-2024',
@@ -684,6 +698,7 @@ export const EVENTS = [
     imageCount: 20,
     thumbGradient: 'linear-gradient(150deg,#4A6A9B,#2E5A8A,#4A7AAD,#6A7A6A)',
     impact: { deaths: 244, displaced: 100000, homesDestroyed: 13000, costUSD: 200 },
+    country: 'np',
   },
   {
     id: 'hurricane-helene-2024',
@@ -759,6 +774,7 @@ export const EVENTS = [
     imageCount: 20,
     thumbGradient: 'linear-gradient(135deg,#6B5B45,#8B7355,#2D6A8E,#7A7A6A)',
     impact: { deaths: 14, displaced: 4000, homesDestroyed: 500, costUSD: 50 },
+    country: 'vu',
   },
 
   // ── 2025 ────────────────────────────────────────────────────────────────────
@@ -791,6 +807,7 @@ export const EVENTS = [
     imageCount: 24,
     thumbGradient: 'linear-gradient(140deg,#8B7355,#6B8E5A,#9B8B6A,#7A8B6A)',
     impact: { deaths: 3700, displaced: 200000, homesDestroyed: 65000, costUSD: 1000 },
+    country: 'mm',
     hdxLayers: [
       {
         name: 'ShakeMap — M7.7 Mandalay Intensity',

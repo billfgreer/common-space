@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { EVENTS } from '../lib/events.js'
+import { esriTileUrl, shortDate, impactScore, topStat, fmtNum, fmtCost } from '../lib/utils.js'
 import Header from './Header.jsx'
 import styles from './Landing.module.css'
 
@@ -45,51 +46,7 @@ const DATA_TYPE_COLORS = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function esriTileUrl(center, zoom) {
-  const [lng, lat] = center
-  const n = Math.pow(2, zoom)
-  const x = Math.floor((lng + 180) / 360 * n)
-  const latRad = lat * Math.PI / 180
-  const y = Math.floor((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n)
-  return `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${zoom}/${y}/${x}`
-}
-
 function getCategory(event) { return TYPE_CATS[event.type] || 'Other' }
-
-// Weighted human-impact score: deaths matter most, then displaced, homes, cost
-function impactScore(e) {
-  const i = e.impact
-  if (!i) return 0
-  return i.deaths * 100 + i.displaced * 0.05 + i.homesDestroyed * 5 + i.costUSD * 0.5
-}
-
-function fmt(n) {
-  if (!n) return null
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`
-  if (n >= 1_000)     return `${(n / 1_000).toFixed(0)}K`
-  return `${n}`
-}
-
-function fmtCost(usdM) {
-  if (!usdM) return null
-  if (usdM >= 1_000) return `$${(usdM / 1_000).toFixed(1).replace(/\.0$/, '')}B`
-  return `$${usdM}M`
-}
-
-function shortDate(dateStr) {
-  if (!dateStr) return ''
-  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-}
-
-// Pick the single most alarming stat to show prominently on the card
-function topStat(impact) {
-  if (!impact) return null
-  if (impact.deaths > 0)          return { label: 'lives lost',  value: fmt(impact.deaths),      red: true }
-  if (impact.displaced > 0)       return { label: 'displaced',   value: fmt(impact.displaced),   red: false }
-  if (impact.homesDestroyed > 0)  return { label: 'homes lost',  value: fmt(impact.homesDestroyed), red: false }
-  if (impact.costUSD > 0)         return { label: 'est. damage', value: fmtCost(impact.costUSD), red: false }
-  return null
-}
 
 // ─── Search icon ──────────────────────────────────────────────────────────────
 const SearchIcon = () => (
@@ -141,7 +98,7 @@ function EventCard({ event, onClick }) {
             {event.impact.displaced > 0 && (
               <span className={styles.impactChip}>
                 <span className={styles.impactDot} style={{ background: '#f59e0b' }} />
-                {fmt(event.impact.displaced)} displaced
+                {fmtNum(event.impact.displaced)} displaced
               </span>
             )}
             {event.impact.costUSD > 0 && (
@@ -217,9 +174,9 @@ export default function Landing({ onSelectEvent }) {
             <div className={styles.heroStats}>
               <span>{totalEvents} events</span>
               <span className={styles.heroDot}>·</span>
-              <span className={styles.heroRed}>{fmt(totalDeaths)} lives lost</span>
+              <span className={styles.heroRed}>{fmtNum(totalDeaths)} lives lost</span>
               <span className={styles.heroDot}>·</span>
-              <span>{fmt(totalDisplaced)} displaced</span>
+              <span>{fmtNum(totalDisplaced)} displaced</span>
             </div>
           </div>
           <div className={styles.heroSearch}>

@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { cogThumbnailTileUrl } from '../lib/titiler.js'
+import { formatDate, formatPlatform } from '../lib/utils.js'
 import styles from './ImageryCard.module.css'
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
@@ -178,7 +179,7 @@ function MetaModal({ item, onClose }) {
 
   const platform = item.platform || props.platform
   const subtitle = [
-    platform?.replace('worldview-', 'WV-').replace('WorldView-', 'WV-'),
+    formatPlatform(platform),
     item.datetime?.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
   ].filter(Boolean).join(' · ')
 
@@ -300,15 +301,6 @@ function MetaModal({ item, onClose }) {
 }
 
 // ─── ImageryCard ──────────────────────────────────────────────────────────────
-
-function formatDate(date) {
-  if (!date) return 'Unknown date'
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-}
-
-function formatPlatform(platform) {
-  return platform.replace('worldview-', 'WV-').replace('WorldView-', 'WV-')
-}
 
 export default function ImageryCard({
   item,
