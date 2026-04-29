@@ -27,7 +27,7 @@ function buildGeoJSON(items, eventDate) {
   }
 }
 
-export default function MapPanel({ event, items, hoveredId, selectedItems, previewItem, onItemClick }) {
+export default function MapPanel({ event, items, hoveredId, selectedItems, previewRequest, onItemClick }) {
   const containerRef   = useRef(null)
   const mapRef         = useRef(null)
   const initialised    = useRef(false)
@@ -197,42 +197,53 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
     try { map.setLayoutProperty('after-cog-layer', 'visibility', showAfter ? 'visible' : 'none') } catch {}
   }, [showAfter])
 
-  // ── Preview COG layer — loads the imagery tile layer for the active preview item ──
+  // ── Preview: fitBounds then load COG — single effect keyed on previewRequest ──
   useEffect(() => {
     const map = mapRef.current
     if (!map) return
+    const item = previewRequest?.item
+
     const apply = () => {
-      // Always tear down previous preview layer first
+      // 1. Tear down any existing preview layer
       try { if (map.getLayer('preview-cog-layer')) map.removeLayer('preview-cog-layer') } catch {}
       try { if (map.getSource('cog-preview'))      map.removeSource('cog-preview')      } catch {}
-      if (!previewItem?.cogUrl) return
-      try {
-        // Sit below footprint outlines but above fills so footprints remain as reference
-        const anchor = map.getLayer('fp-line') ? 'fp-line' : map.getLayer('fp-fill') ? 'fp-fill' : undefined
-        map.addSource('cog-preview', {
-          type: 'raster',
-          tiles: [cogTileUrl(previewItem.cogUrl)],
-          tileSize: 256,
-        })
-        map.addLayer({
-          id: 'preview-cog-layer', type: 'raster', source: 'cog-preview',
-          paint: { 'raster-opacity': 0.95 },
-        }, anchor)
-      } catch (e) { console.warn('preview COG layer error:', e) }
-    }
-    if (map.isStyleLoaded()) apply()
-    else { map.once('load', apply); return () => map.off('load', apply) }
-  }, [previewItem]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Zoom to previewItem bbox ──────────────────────────
-  useEffect(() => {
-    const map = mapRef.current
-    if (!map || !previewItem?.bbox?.length) return
-    const [minX, minY, maxX, maxY] = previewItem.bbox
-    const apply = () => map.fitBounds([[minX, minY], [maxX, maxY]], { padding: 60, duration: 800, maxZoom: 16 })
+      if (!item) return
+
+      // 2. Pan + zoom to the image extent first
+      if (item.bbox?.length === 4) {
+        const [minX, minY, maxX, maxY] = item.bbox
+        map.fitBounds([[minX, minY], [maxX, maxY]], { padding: 60, duration: 600, maxZoom: 16 })
+      }
+
+      // 3. Load the COG tile layer (after a short delay so the map has started moving)
+      if (!item.cogUrl) return
+      setTimeout(() => {
+        if (!mapRef.current) return
+        try { if (map.getLayer('preview-cog-layer')) map.removeLayer('preview-cog-layer') } catch {}
+        try { if (map.getSource('cog-preview'))      map.removeSource('cog-preview')      } catch {}
+        try {
+          const anchor = map.getLayer('fp-line') ? 'fp-line' : map.getLayer('fp-fill') ? 'fp-fill' : undefined
+          map.addSource('cog-preview', {
+            type: 'raster',
+            tiles: [cogTileUrl(item.cogUrl)],
+            tileSize: 256,
+          })
+          map.addLayer({
+            id: 'preview-cog-layer', type: 'raster', source: 'cog-preview',
+            layout: { visibility: 'visible' },
+            paint: { 'raster-opacity': 0.95 },
+          }, anchor)
+        } catch (e) { console.warn('preview COG layer error:', e) }
+      }, 100)
+
+      // 4. Always reset the toggle to visible when a new item is previewed
+      setShowPreview(true)
+    }
+
     if (map.isStyleLoaded()) apply()
     else { map.once('load', apply); return () => map.off('load', apply) }
-  }, [previewItem])
+  }, [previewRequest]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Fly to event ──────────────────────────────────────
   useEffect(() => {
@@ -243,9 +254,10 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
     else { map.once('load', fly) }
   }, [event?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const hasBefore  = !!selectedItems?.before
-  const hasAfter   = !!selectedItems?.after
-  const hasPreview = !!previewItem?.cogUrl
+  const previewItem = previewRequest?.item ?? null
+  const hasBefore   = !!selectedItems?.before
+  const hasAfter    = !!selectedItems?.after
+  const hasPreview  = !!previewItem?.cogUrl
 
   const [showPreview, setShowPreview] = useState(true)
   const showPreviewRef = useRef(true)

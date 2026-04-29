@@ -10,7 +10,8 @@ export default function Results({ event, onBack, onHome, onCompare }) {
   const [loading, setLoading]     = useState(true)
   const [hoveredId, setHoveredId] = useState(null)
   const [selected, setSelected]   = useState({ before: null, after: null })
-  const [previewItem, setPreviewItem] = useState(null)
+  const [previewRequest, setPreviewRequest] = useState(null)  // { item, seq }
+  const previewItem = previewRequest?.item ?? null
   const abortRef = useRef(null)
 
   // Fetch items whenever the event changes
@@ -25,7 +26,7 @@ export default function Results({ event, onBack, onHome, onCompare }) {
     setItems([])
     setLoading(true)
     setSelected({ before: null, after: null })
-    setPreviewItem(null)
+    setPreviewRequest(null)
 
     streamEventItems(event.catalogUrl, {
       maxItems: 80,
@@ -43,19 +44,21 @@ export default function Results({ event, onBack, onHome, onCompare }) {
     return () => controller.abort()
   }, [event?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Preview: just show this image on the map (primary exploration action)
+  // Preview: zoom map + load COG. Always increments seq so same item re-triggers.
+  const previewSeqRef = useRef(0)
   const handlePreview = useCallback((item) => {
-    setPreviewItem(item)
+    previewSeqRef.current += 1
+    setPreviewRequest({ item, seq: previewSeqRef.current })
   }, [])
 
   // Select for comparison: assign to before/after slot (also previews)
   const handleSelect = useCallback((item, timing) => {
-    setPreviewItem(item)
+    handlePreview(item)
     setSelected(prev => {
       if (prev[timing]?.id === item.id) return { ...prev, [timing]: null }
       return { ...prev, [timing]: item }
     })
-  }, [])
+  }, [handlePreview])
 
   const handleCompare = useCallback(() => {
     if (selected.before && selected.after) {
@@ -72,7 +75,7 @@ export default function Results({ event, onBack, onHome, onCompare }) {
           items={items}
           hoveredId={hoveredId}
           selectedItems={selected}
-          previewItem={previewItem}
+          previewRequest={previewRequest}
           onItemClick={handlePreview}
         />
         <ResultsPanel
