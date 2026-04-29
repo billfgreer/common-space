@@ -21,6 +21,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/Nepal-Earthquake-Apr-2015/collection.json`,
     imageCount: 20,
     thumbGradient: 'linear-gradient(135deg,#6B5B45,#8B7355,#9B8B6A,#7A7A6A)',
+    impact: { deaths: 8857, displaced: 2800000, homesDestroyed: 600000, costUSD: 10000 },
     hdxLayers: [
       {
         name: 'ShakeMap — M7.8 Mainshock Intensity',
@@ -54,6 +55,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/Hurricane-Maria-PuertoRico-Oct-2017/collection.json`,
     imageCount: 30,
     thumbGradient: 'linear-gradient(120deg,#2D5A8E,#4A8BAD,#6BAD8E,#8BA06B)',
+    impact: { deaths: 2975, displaced: 900000, homesDestroyed: 70000, costUSD: 91000 },
     hdxLayers: [
       {
         name: 'HOT — Puerto Rico Buildings',
@@ -82,6 +84,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/volcano-indonesia21/collection.json`,
     imageCount: 25,
     thumbGradient: 'linear-gradient(160deg,#8B2500,#A03520,#C04520,#6A3010)',
+    impact: { deaths: 51, displaced: 5000, homesDestroyed: 2000, costUSD: 50 },
   },
   {
     id: 'marshall-fire-2021',
@@ -96,6 +99,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/Marshall-Fire-21-Update/collection.json`,
     imageCount: 20,
     thumbGradient: 'linear-gradient(155deg,#8B4513,#A0522D,#CD853F,#D2691E)',
+    impact: { deaths: 1, displaced: 35000, homesDestroyed: 1084, costUSD: 2000 },
   },
 
   // ── 2022 ────────────────────────────────────────────────────────────────────
@@ -112,6 +116,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/tonga-volcano21/collection.json`,
     imageCount: 20,
     thumbGradient: 'linear-gradient(160deg,#8B2500,#A03520,#2D5A8E,#4A8BAD)',
+    impact: { deaths: 6, displaced: 84000, homesDestroyed: 1400, costUSD: 300 },
   },
   {
     id: 'ghana-explosion-2022',
@@ -126,6 +131,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/ghana-explosion22/collection.json`,
     imageCount: 15,
     thumbGradient: 'linear-gradient(145deg,#6B5A2A,#9B7A3A,#8B6A2A,#5A4A1A)',
+    impact: { deaths: 17, displaced: 5000, homesDestroyed: 500, costUSD: 3 },
   },
   {
     id: 'cyclone-emnati-2022',
@@ -140,6 +146,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/cyclone-emnati22/collection.json`,
     imageCount: 20,
     thumbGradient: 'linear-gradient(130deg,#2D6A8E,#4A9BAD,#6BAAAD,#3A7A9E)',
+    impact: { deaths: 30, displaced: 80000, homesDestroyed: 15000, costUSD: 100 },
   },
   {
     id: 'south-africa-flooding-2022',
@@ -154,6 +161,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/southafrica-flooding22/collection.json`,
     imageCount: 20,
     thumbGradient: 'linear-gradient(150deg,#4A6A9B,#2E5A8A,#4A7AAD,#6A9AAD)',
+    impact: { deaths: 435, displaced: 40000, homesDestroyed: 4000, costUSD: 1600 },
   },
   {
     id: 'afghanistan-earthquake-2022',
@@ -168,6 +176,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/afghanistan-earthquake22/collection.json`,
     imageCount: 20,
     thumbGradient: 'linear-gradient(135deg,#6B5B45,#8B7355,#9B8B6A,#7A7A6A)',
+    impact: { deaths: 1163, displaced: 10000, homesDestroyed: 10000, costUSD: 15 },
   },
   {
     id: 'yellowstone-flooding-2022',
@@ -182,6 +191,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/yellowstone-flooding22/collection.json`,
     imageCount: 20,
     thumbGradient: 'linear-gradient(150deg,#4A6A9B,#2E5A8A,#5A7A6A,#6A9AAD)',
+    impact: { deaths: 0, displaced: 5000, homesDestroyed: 100, costUSD: 200 },
   },
   {
     id: 'kentucky-flooding-2022',
@@ -196,6 +206,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/kentucky-flooding-7-29-2022/collection.json`,
     imageCount: 20,
     thumbGradient: 'linear-gradient(150deg,#2D5A8A,#4A7AAD,#6A9AAD,#3A6A8A)',
+    impact: { deaths: 37, displaced: 10000, homesDestroyed: 1200, costUSD: 1000 },
   },
   {
     id: 'gambia-flooding-2022',
@@ -210,6 +221,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/Gambia-flooding-8-11-2022/collection.json`,
     imageCount: 15,
     thumbGradient: 'linear-gradient(150deg,#4A6A9B,#6A8A5B,#4A7AAD,#5A9A6A)',
+    impact: { deaths: 9, displaced: 33000, homesDestroyed: 6000, costUSD: 10 },
   },
   {
     id: 'pakistan-flooding-2022',
@@ -224,6 +236,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/pakistan-flooding22/collection.json`,
     imageCount: 30,
     thumbGradient: 'linear-gradient(150deg,#4A6A9B,#2E5A8A,#4A7AAD,#6A9AAD)',
+    impact: { deaths: 1739, displaced: 33000000, homesDestroyed: 1700000, costUSD: 30000 },
     hdxLayers: [
       {
         name: 'UNOSAT Flood Extent — Sindh Province',
@@ -250,6 +263,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/Sudan-flooding-8-22-2022/collection.json`,
     imageCount: 15,
     thumbGradient: 'linear-gradient(150deg,#8B7A4A,#4A6A9B,#6A8A4A,#2E5A8A)',
+    impact: { deaths: 120, displaced: 500000, homesDestroyed: 50000, costUSD: 50 },
   },
   {
     id: 'hurricane-fiona-2022',
@@ -264,6 +278,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/Hurricane-Fiona-9-19-2022/collection.json`,
     imageCount: 25,
     thumbGradient: 'linear-gradient(120deg,#2D5A8E,#4A8BAD,#6BAD8E,#8BA06B)',
+    impact: { deaths: 8, displaced: 800000, homesDestroyed: 3000, costUSD: 800 },
   },
   {
     id: 'hurricane-ian-2022',
@@ -278,6 +293,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/Hurricane-Ian-9-26-2022/collection.json`,
     imageCount: 40,
     thumbGradient: 'linear-gradient(120deg,#2D5A8E,#4A8BAD,#6BAD8E,#8BA06B)',
+    impact: { deaths: 156, displaced: 700000, homesDestroyed: 28000, costUSD: 113000 },
   },
   {
     id: 'indonesia-earthquake-2022',
@@ -292,6 +308,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/Indonesia-Earthquake22/collection.json`,
     imageCount: 25,
     thumbGradient: 'linear-gradient(135deg,#6B5B45,#8B7355,#9B8B6A,#7A7A6A)',
+    impact: { deaths: 321, displaced: 75000, homesDestroyed: 56000, costUSD: 570 },
   },
 
   // ── 2023 ────────────────────────────────────────────────────────────────────
@@ -308,6 +325,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/New-Zealand-Flooding23/collection.json`,
     imageCount: 20,
     thumbGradient: 'linear-gradient(150deg,#2D5A8A,#4A7AAD,#3A8A6A,#6A9AAD)',
+    impact: { deaths: 11, displaced: 10000, homesDestroyed: 1000, costUSD: 2700 },
   },
   {
     id: 'turkey-earthquake-2023',
@@ -322,6 +340,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/Kahramanmaras-turkey-earthquake-23/collection.json`,
     imageCount: 47,
     thumbGradient: 'linear-gradient(135deg,#8B7355,#A0896A,#6B8E5A,#7A9B6A)',
+    impact: { deaths: 50783, displaced: 1500000, homesDestroyed: 160000, costUSD: 100000 },
     hdxLayers: [
       {
         name: 'USGS ShakeMap — M7.8 Pazarcık Intensity',
@@ -353,6 +372,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/BayofBengal-Cyclone-Mocha-May-23/collection.json`,
     imageCount: 25,
     thumbGradient: 'linear-gradient(130deg,#2D6A8E,#4A9BAD,#6BAAAD,#3A7A9E)',
+    impact: { deaths: 145, displaced: 800000, homesDestroyed: 76000, costUSD: 800 },
   },
   {
     id: 'emilia-romagna-flooding-2023',
@@ -367,6 +387,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/Emilia-Romagna-Italy-flooding-may23/collection.json`,
     imageCount: 20,
     thumbGradient: 'linear-gradient(150deg,#4A6A9B,#2E5A8A,#4A7AAD,#6A9AAD)',
+    impact: { deaths: 15, displaced: 36000, homesDestroyed: 5000, costUSD: 9000 },
   },
   {
     id: 'drc-flooding-2023',
@@ -381,6 +402,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/Kalehe-DRC-Flooding-5-8-23/collection.json`,
     imageCount: 15,
     thumbGradient: 'linear-gradient(150deg,#3A6A4A,#4A8A5A,#2E6A3A,#5A9A6A)',
+    impact: { deaths: 400, displaced: 20000, homesDestroyed: 3500, costUSD: 20 },
   },
   {
     id: 'shovi-georgia-landslide-2023',
@@ -395,6 +417,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/shovi-georgia-landslide-8Aug23/collection.json`,
     imageCount: 15,
     thumbGradient: 'linear-gradient(140deg,#4A6B3A,#6A8B5A,#5A7B4A,#3A5B2A)',
+    impact: { deaths: 32, displaced: 500, homesDestroyed: 50, costUSD: 10 },
   },
   {
     id: 'mcdougall-creek-wildfire-2023',
@@ -409,6 +432,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/McDougallCreekWildfire-BC-Canada-Aug-23/collection.json`,
     imageCount: 20,
     thumbGradient: 'linear-gradient(155deg,#8B4513,#A0522D,#CD853F,#D2691E)',
+    impact: { deaths: 0, displaced: 35000, homesDestroyed: 160, costUSD: 100 },
   },
   {
     id: 'nwt-wildfires-2023',
@@ -423,6 +447,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/NWT-Canada-Aug-23/collection.json`,
     imageCount: 20,
     thumbGradient: 'linear-gradient(155deg,#8B4513,#A0522D,#CD853F,#6A6A5A)',
+    impact: { deaths: 0, displaced: 20000, homesDestroyed: 100, costUSD: 500 },
   },
   {
     id: 'lahaina-fire-2023',
@@ -437,6 +462,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/Maui-Hawaii-fires-Aug-23/collection.json`,
     imageCount: 23,
     thumbGradient: 'linear-gradient(160deg,#4A7A9B,#2E6B8A,#8B9B7A,#A89B7A)',
+    impact: { deaths: 100, displaced: 12000, homesDestroyed: 3000, costUSD: 6000 },
   },
   {
     id: 'morocco-earthquake-2023',
@@ -451,6 +477,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/Morocco-Earthquake-Sept-2023/collection.json`,
     imageCount: 19,
     thumbGradient: 'linear-gradient(140deg,#5A3A2E,#7A5A3A,#9A7A5A,#6A8A7A)',
+    impact: { deaths: 2960, displaced: 300000, homesDestroyed: 50000, costUSD: 1300 },
     hdxLayers: [
       {
         name: 'UNOSAT Satellite-Detected Damaged Structures',
@@ -482,6 +509,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/Libya-Floods-Sept-2023/collection.json`,
     imageCount: 34,
     thumbGradient: 'linear-gradient(150deg,#7A4A6B,#9A6A4A,#6B8A6B,#4A6B8A)',
+    impact: { deaths: 11300, displaced: 40000, homesDestroyed: 5000, costUSD: 500 },
     hdxLayers: [
       {
         name: 'UNOSAT Flood Extent — Derna',
@@ -513,6 +541,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/India-Floods-Oct-2023/collection.json`,
     imageCount: 20,
     thumbGradient: 'linear-gradient(150deg,#4A6A9B,#2E5A8A,#4A7A6A,#6A9AAD)',
+    impact: { deaths: 40, displaced: 100000, homesDestroyed: 1200, costUSD: 30 },
   },
   {
     id: 'nepal-earthquake-2023',
@@ -527,6 +556,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/Nepal-Earthquake-Nov-2023/collection.json`,
     imageCount: 20,
     thumbGradient: 'linear-gradient(135deg,#6B5B45,#8B7355,#9B8B6A,#7A7A6A)',
+    impact: { deaths: 154, displaced: 20000, homesDestroyed: 3600, costUSD: 100 },
   },
   {
     id: 'iceland-volcano-2023',
@@ -541,6 +571,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/Iceland-Volcano_Eruption-Dec-2023/collection.json`,
     imageCount: 20,
     thumbGradient: 'linear-gradient(160deg,#8B2500,#A03520,#C04520,#6A3010)',
+    impact: { deaths: 0, displaced: 3000, homesDestroyed: 40, costUSD: 100 },
   },
 
   // ── 2024 ────────────────────────────────────────────────────────────────────
@@ -557,6 +588,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/Japan-Earthquake-Jan-2024/collection.json`,
     imageCount: 30,
     thumbGradient: 'linear-gradient(135deg,#6B5B45,#8B7355,#9B8B6A,#4A7AAD)',
+    impact: { deaths: 241, displaced: 80000, homesDestroyed: 18000, costUSD: 1700 },
   },
   {
     id: 'smokehouse-creek-2024',
@@ -571,6 +603,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/SmokeHouseCreek-Wildfires-Texas-Mar24/collection.json`,
     imageCount: 20,
     thumbGradient: 'linear-gradient(155deg,#8B4513,#A0522D,#CD853F,#D2691E)',
+    impact: { deaths: 2, displaced: 15000, homesDestroyed: 500, costUSD: 500 },
   },
   {
     id: 'kenya-flooding-2024',
@@ -585,6 +618,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/Kenya-Flooding-May24/collection.json`,
     imageCount: 20,
     thumbGradient: 'linear-gradient(150deg,#3A6A4A,#4A8A5A,#4A6A9B,#6A9A5A)',
+    impact: { deaths: 210, displaced: 400000, homesDestroyed: 40000, costUSD: 300 },
     hdxLayers: [
       {
         name: 'UNOSAT Flood Extent — Kenya 2024',
@@ -611,6 +645,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/Brazil-Flooding-May24/collection.json`,
     imageCount: 30,
     thumbGradient: 'linear-gradient(150deg,#4A6A9B,#2E5A8A,#4A7AAD,#3A9A6A)',
+    impact: { deaths: 153, displaced: 415000, homesDestroyed: 400000, costUSD: 3000 },
     hdxLayers: [
       {
         name: 'UNOSAT Flood Extent — Rio Grande do Sul',
@@ -637,6 +672,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/PNG-Landslide-June24/collection.json`,
     imageCount: 15,
     thumbGradient: 'linear-gradient(140deg,#4A6B3A,#6A8B5A,#5A7B4A,#3A5B2A)',
+    impact: { deaths: 2000, displaced: 4000, homesDestroyed: 2000, costUSD: 30 },
   },
   {
     id: 'belize-wildfires-2024',
@@ -651,6 +687,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/Belize-Wildfires-June24/collection.json`,
     imageCount: 20,
     thumbGradient: 'linear-gradient(155deg,#8B4513,#A0522D,#CD853F,#D2691E)',
+    impact: { deaths: 0, displaced: 5000, homesDestroyed: 100, costUSD: 20 },
   },
   {
     id: 'nigeria-floods-2024',
@@ -665,6 +702,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/Nigeria-Floods-Sept-2024/collection.json`,
     imageCount: 20,
     thumbGradient: 'linear-gradient(150deg,#4A6A9B,#2E5A8A,#6A8A5A,#4A7AAD)',
+    impact: { deaths: 200, displaced: 1300000, homesDestroyed: 200000, costUSD: 150 },
   },
   {
     id: 'nepal-floods-2024',
@@ -679,6 +717,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/Nepal-Floods-Sept-2024/collection.json`,
     imageCount: 20,
     thumbGradient: 'linear-gradient(150deg,#4A6A9B,#2E5A8A,#4A7AAD,#6A7A6A)',
+    impact: { deaths: 244, displaced: 100000, homesDestroyed: 13000, costUSD: 200 },
   },
   {
     id: 'hurricane-helene-2024',
@@ -693,6 +732,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/HurricaneHelene-Oct24/collection.json`,
     imageCount: 41,
     thumbGradient: 'linear-gradient(150deg,#4A7A9B,#2E6B8A,#4A8BAD,#6B9BAD)',
+    impact: { deaths: 227, displaced: 300000, homesDestroyed: 70000, costUSD: 47000 },
   },
   {
     id: 'hurricane-milton-2024',
@@ -707,6 +747,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/HurricaneMilton-Oct24/collection.json`,
     imageCount: 52,
     thumbGradient: 'linear-gradient(120deg,#2D5A8E,#4A8BAD,#6BAD8E,#8BA06B)',
+    impact: { deaths: 24, displaced: 300000, homesDestroyed: 2000, costUSD: 34000 },
   },
   {
     id: 'spain-flooding-2024',
@@ -721,6 +762,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/Floods-Spain-Oct24/collection.json`,
     imageCount: 30,
     thumbGradient: 'linear-gradient(150deg,#4A6A9B,#2E5A8A,#4A7AAD,#6A9AAD)',
+    impact: { deaths: 220, displaced: 120000, homesDestroyed: 120000, costUSD: 11000 },
   },
   {
     id: 'cyclone-chido-2024',
@@ -735,6 +777,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/Cyclone-Chido-Dec15/collection.json`,
     imageCount: 20,
     thumbGradient: 'linear-gradient(130deg,#2D6A8E,#4A9BAD,#6BAAAD,#3A7A9E)',
+    impact: { deaths: 100, displaced: 200000, homesDestroyed: 40000, costUSD: 400 },
   },
   {
     id: 'vanuatu-earthquake-2024',
@@ -749,6 +792,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/Vanuatu-Earthquake-Dec17/collection.json`,
     imageCount: 20,
     thumbGradient: 'linear-gradient(135deg,#6B5B45,#8B7355,#2D6A8E,#7A7A6A)',
+    impact: { deaths: 14, displaced: 4000, homesDestroyed: 500, costUSD: 50 },
   },
 
   // ── 2025 ────────────────────────────────────────────────────────────────────
@@ -765,6 +809,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/WildFires-LosAngeles-Jan-2025/collection.json`,
     imageCount: 38,
     thumbGradient: 'linear-gradient(160deg,#8B4513,#A0522D,#CD853F,#D2691E)',
+    impact: { deaths: 27, displaced: 180000, homesDestroyed: 16000, costUSD: 135000 },
   },
   {
     id: 'myanmar-earthquake-2025',
@@ -779,6 +824,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/Earthquake-Myanmar-March-2025/collection.json`,
     imageCount: 24,
     thumbGradient: 'linear-gradient(140deg,#8B7355,#6B8E5A,#9B8B6A,#7A8B6A)',
+    impact: { deaths: 3700, displaced: 200000, homesDestroyed: 65000, costUSD: 1000 },
     hdxLayers: [
       {
         name: 'UNOSAT Satellite-Detected Damaged Structures',
@@ -815,6 +861,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/Nigeria-Flooding-May-2025/collection.json`,
     imageCount: 20,
     thumbGradient: 'linear-gradient(150deg,#4A6A9B,#2E5A8A,#6A8A5A,#4A7AAD)',
+    impact: { deaths: 0, displaced: 0, homesDestroyed: 0, costUSD: 0 },
   },
   {
     id: 'texas-flooding-2025',
@@ -829,6 +876,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/Texas-Flooding-July-2025/collection.json`,
     imageCount: 20,
     thumbGradient: 'linear-gradient(150deg,#4A6A9B,#2E5A8A,#8B7A4A,#4A7AAD)',
+    impact: { deaths: 0, displaced: 0, homesDestroyed: 0, costUSD: 0 },
   },
   {
     id: 'hurricane-melissa-2025',
@@ -843,6 +891,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/Hurricane-Melissa-Oct-2025/collection.json`,
     imageCount: 20,
     thumbGradient: 'linear-gradient(120deg,#2D5A8E,#4A8BAD,#6BAD8E,#8BA06B)',
+    impact: { deaths: 0, displaced: 0, homesDestroyed: 0, costUSD: 0 },
   },
   {
     id: 'typhoon-kalmaegi-2025',
@@ -857,6 +906,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/Typhoon-Kalmaegi-Nov-2025/collection.json`,
     imageCount: 20,
     thumbGradient: 'linear-gradient(130deg,#2D6A8E,#4A9BAD,#6BAAAD,#3A7A9E)',
+    impact: { deaths: 0, displaced: 0, homesDestroyed: 0, costUSD: 0 },
   },
   {
     id: 'cyclone-ditwah-2025',
@@ -871,6 +921,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/Cyclone-Ditwah-Sri-Lanka-Nov-2025/collection.json`,
     imageCount: 20,
     thumbGradient: 'linear-gradient(130deg,#2D6A8E,#4A9BAD,#6BAAAD,#3A7A9E)',
+    impact: { deaths: 0, displaced: 0, homesDestroyed: 0, costUSD: 0 },
   },
   {
     id: 'cyclone-senyar-indonesia-2025',
@@ -885,6 +936,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/Cyclone-Senyar-Indonesia-Nov-2025/collection.json`,
     imageCount: 20,
     thumbGradient: 'linear-gradient(130deg,#2D6A8E,#4A9BAD,#6BAAAD,#3A7A9E)',
+    impact: { deaths: 0, displaced: 0, homesDestroyed: 0, costUSD: 0 },
   },
   {
     id: 'cyclone-senyar-thailand-2025',
@@ -899,6 +951,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/Cyclone-Senyar-Thailand-Nov-2025/collection.json`,
     imageCount: 20,
     thumbGradient: 'linear-gradient(130deg,#2D6A8E,#4A9BAD,#6BAAAD,#3A7A9E)',
+    impact: { deaths: 0, displaced: 0, homesDestroyed: 0, costUSD: 0 },
   },
   {
     id: 'morocco-flooding-2025',
@@ -913,6 +966,7 @@ export const EVENTS = [
     catalogUrl: `${BASE}/Morocco-Flooding-Dec-2025/collection.json`,
     imageCount: 20,
     thumbGradient: 'linear-gradient(150deg,#4A6A9B,#2E5A8A,#8B7A4A,#6A9AAD)',
+    impact: { deaths: 0, displaced: 0, homesDestroyed: 0, costUSD: 0 },
   },
 
   // ── Satellogic EarthView open archive (1m GSD, CC-BY-4.0) ─────────────────

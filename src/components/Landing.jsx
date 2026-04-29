@@ -3,7 +3,7 @@ import { EVENTS } from '../lib/events.js'
 import Header from './Header.jsx'
 import styles from './Landing.module.css'
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+// ─── Category map ─────────────────────────────────────────────────────────────
 
 const TYPE_CATS = {
   Wildfire:   'Fire',
@@ -19,7 +19,7 @@ const TYPE_CATS = {
 }
 
 const CAT_FILTERS = [
-  { id: 'all',        label: 'All Events', emoji: '🌐' },
+  { id: 'all',        label: 'All',         emoji: '🌐' },
   { id: 'Earthquake', label: 'Earthquake',  emoji: '🌍' },
   { id: 'Flood',      label: 'Flood',       emoji: '🌊' },
   { id: 'Fire',       label: 'Wildfire',    emoji: '🔥' },
@@ -28,17 +28,23 @@ const CAT_FILTERS = [
   { id: 'Archive',    label: 'Archive',     emoji: '🛰' },
 ]
 
+const SORT_OPTIONS = [
+  { id: 'impact', label: 'Human Impact' },
+  { id: 'recent', label: 'Most Recent'  },
+  { id: 'cost',   label: 'Economic Cost'},
+]
+
 const DATA_TYPE_COLORS = {
-  damage:     { bg: '#fef2f2', color: '#dc2626', label: 'Damage Map' },
-  flood:      { bg: '#eff6ff', color: '#2563eb', label: 'Flood Extent' },
-  shakemap:   { bg: '#f5f3ff', color: '#7c3aed', label: 'ShakeMap' },
-  buildings:  { bg: '#fffbeb', color: '#d97706', label: 'Buildings' },
-  roads:      { bg: '#f9fafb', color: '#6b7280', label: 'Roads' },
-  admin:      { bg: '#f0fdf4', color: '#16a34a', label: 'Admin Bounds' },
-  population: { bg: '#fdf4ff', color: '#9333ea', label: 'Population' },
+  damage:     { color: '#dc2626', label: 'Damage' },
+  flood:      { color: '#2563eb', label: 'Flood'  },
+  shakemap:   { color: '#7c3aed', label: 'ShakeMap' },
+  buildings:  { color: '#d97706', label: 'Buildings' },
+  admin:      { color: '#16a34a', label: 'Admin'  },
+  population: { color: '#9333ea', label: 'Population' },
 }
 
-// Compute ESRI tile URL for a center + zoom
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
 function esriTileUrl(center, zoom) {
   const [lng, lat] = center
   const n = Math.pow(2, zoom)
@@ -48,36 +54,62 @@ function esriTileUrl(center, zoom) {
   return `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${zoom}/${y}/${x}`
 }
 
-function formatEventDate(dateStr) {
-  if (!dateStr) return ''
-  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+function getCategory(event) { return TYPE_CATS[event.type] || 'Other' }
+
+// Weighted human-impact score: deaths matter most, then displaced, homes, cost
+function impactScore(e) {
+  const i = e.impact
+  if (!i) return 0
+  return i.deaths * 100 + i.displaced * 0.05 + i.homesDestroyed * 5 + i.costUSD * 0.5
 }
 
-function getCategory(event) {
-  return TYPE_CATS[event.type] || 'Other'
+function fmt(n) {
+  if (!n) return null
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`
+  if (n >= 1_000)     return `${(n / 1_000).toFixed(0)}K`
+  return `${n}`
+}
+
+function fmtCost(usdM) {
+  if (!usdM) return null
+  if (usdM >= 1_000) return `$${(usdM / 1_000).toFixed(1).replace(/\.0$/, '')}B`
+  return `$${usdM}M`
+}
+
+function shortDate(dateStr) {
+  if (!dateStr) return ''
+  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+}
+
+// Pick the single most alarming stat to show prominently on the card
+function topStat(impact) {
+  if (!impact) return null
+  if (impact.deaths > 0)          return { label: 'lives lost',  value: fmt(impact.deaths),      red: true }
+  if (impact.displaced > 0)       return { label: 'displaced',   value: fmt(impact.displaced),   red: false }
+  if (impact.homesDestroyed > 0)  return { label: 'homes lost',  value: fmt(impact.homesDestroyed), red: false }
+  if (impact.costUSD > 0)         return { label: 'est. damage', value: fmtCost(impact.costUSD), red: false }
+  return null
 }
 
 // ─── Search icon ──────────────────────────────────────────────────────────────
 const SearchIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
   </svg>
 )
 
 // ─── Event card ───────────────────────────────────────────────────────────────
 function EventCard({ event, onClick }) {
-  const cat    = getCategory(event)
-  const hdxSet = useMemo(() => {
-    const types = new Set()
-    event.hdxLayers?.forEach(l => types.add(l.type))
-    return [...types]
-  }, [event.hdxLayers])
-
   const isArchive = event.source === 'satellogic'
+  const stat      = topStat(event.impact)
+  const hdxTypes  = useMemo(() => {
+    const seen = new Set()
+    event.hdxLayers?.forEach(l => seen.add(l.type))
+    return [...seen].slice(0, 3) // max 3 dataset pills on card
+  }, [event.hdxLayers])
 
   return (
     <button className={styles.card} onClick={onClick}>
-      {/* Satellite thumbnail */}
       <div className={styles.thumb} style={{ background: event.thumbGradient }}>
         <img
           src={esriTileUrl(event.center, Math.min(event.zoom, 12))}
@@ -88,41 +120,52 @@ function EventCard({ event, onClick }) {
         <span className={`${styles.typeBadge} ${isArchive ? styles.typeBadgeArchive : ''}`}>
           {isArchive ? 'Archive' : event.type}
         </span>
-        {isArchive && (
-          <span className={styles.sourceBadge}>Satellogic 1m</span>
+        {/* Top impact stat overlaid on thumbnail */}
+        {stat && (
+          <span className={`${styles.statBadge} ${stat.red ? styles.statBadgeRed : ''}`}>
+            {stat.value} {stat.label}
+          </span>
         )}
       </div>
 
-      {/* Card body */}
       <div className={styles.body}>
         <div className={styles.cardName}>{event.name}</div>
         <div className={styles.cardMeta}>
           <span className={styles.cardLocation}>{event.location}</span>
-          {event.eventDate && (
-            <span className={styles.cardDate}>{formatEventDate(event.eventDate)}</span>
-          )}
+          <span className={styles.cardDate}>{shortDate(event.eventDate)}</span>
         </div>
 
-        {/* Data availability */}
-        <div className={styles.dataRow}>
-          {/* Imagery pill */}
-          <span className={styles.dataPill} style={{ background: 'rgba(10,175,184,.1)', color: '#0AAFB8', border: '1px solid rgba(10,175,184,.3)' }}>
-            🛰 {event.imageCount}+ scenes
-          </span>
-
-          {/* HDX dataset pills */}
-          {hdxSet.map(type => {
-            const meta = DATA_TYPE_COLORS[type]
-            if (!meta) return null
-            return (
-              <span
-                key={type}
-                className={styles.dataPill}
-                style={{ background: meta.bg, color: meta.color, border: `1px solid ${meta.color}33` }}
-              >
-                {meta.label}
+        {/* Secondary impact row */}
+        {event.impact && (event.impact.displaced > 0 || event.impact.costUSD > 0) && (
+          <div className={styles.impactRow}>
+            {event.impact.displaced > 0 && (
+              <span className={styles.impactChip}>
+                <span className={styles.impactDot} style={{ background: '#f59e0b' }} />
+                {fmt(event.impact.displaced)} displaced
               </span>
-            )
+            )}
+            {event.impact.costUSD > 0 && (
+              <span className={styles.impactChip}>
+                <span className={styles.impactDot} style={{ background: '#64748b' }} />
+                {fmtCost(event.impact.costUSD)}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Data pills */}
+        <div className={styles.dataRow}>
+          <span className={styles.dataPill} style={{ background: 'rgba(10,175,184,.1)', color: '#0AAFB8', border: '1px solid rgba(10,175,184,.28)' }}>
+            🛰 {event.imageCount}+
+          </span>
+          {hdxTypes.map(type => {
+            const m = DATA_TYPE_COLORS[type]
+            return m ? (
+              <span key={type} className={styles.dataPill}
+                style={{ background: `${m.color}15`, color: m.color, border: `1px solid ${m.color}33` }}>
+                {m.label}
+              </span>
+            ) : null
           })}
         </div>
       </div>
@@ -130,127 +173,105 @@ function EventCard({ event, onClick }) {
   )
 }
 
-// ─── Landing page ─────────────────────────────────────────────────────────────
+// ─── Landing ──────────────────────────────────────────────────────────────────
 export default function Landing({ onSelectEvent }) {
   const [query,  setQuery]  = useState('')
   const [filter, setFilter] = useState('all')
+  const [sort,   setSort]   = useState('impact')
 
-  // Sort all events newest-first; archives go last
-  const sortedEvents = useMemo(() => {
-    const disasters = EVENTS
-      .filter(e => e.source !== 'satellogic')
-      .sort((a, b) => new Date(b.eventDate) - new Date(a.eventDate))
+  const baseEvents = useMemo(() => {
+    const disasters = EVENTS.filter(e => e.source !== 'satellogic')
     const archives  = EVENTS.filter(e => e.source === 'satellogic')
-    return [...disasters, ...archives]
-  }, [])
-
-  const visibleEvents = useMemo(() => {
-    return sortedEvents.filter(e => {
-      const matchesCat = filter === 'all' || getCategory(e) === filter
-      const matchesQ   = !query
-        || e.name.toLowerCase().includes(query.toLowerCase())
-        || e.location.toLowerCase().includes(query.toLowerCase())
-      return matchesCat && matchesQ
+    // Sort disasters
+    const sorted = [...disasters].sort((a, b) => {
+      if (sort === 'impact') return impactScore(b) - impactScore(a)
+      if (sort === 'cost')   return (b.impact?.costUSD ?? 0) - (a.impact?.costUSD ?? 0)
+      return new Date(b.eventDate) - new Date(a.eventDate)  // recent
     })
-  }, [sortedEvents, filter, query])
+    return [...sorted, ...archives]
+  }, [sort])
 
-  // Hero featured event = most recent disaster
-  const featured = sortedEvents.find(e => e.source !== 'satellogic')
+  const visible = useMemo(() => baseEvents.filter(e => {
+    const matchCat = filter === 'all' || getCategory(e) === filter
+    const q = query.toLowerCase()
+    const matchQ = !q || e.name.toLowerCase().includes(q) || e.location.toLowerCase().includes(q)
+    return matchCat && matchQ
+  }), [baseEvents, filter, query])
+
+  // Summary counts for the toolbar
+  const totalEvents    = EVENTS.filter(e => e.source !== 'satellogic').length
+  const totalDeaths    = useMemo(() =>
+    EVENTS.reduce((s, e) => s + (e.impact?.deaths ?? 0), 0), [])
+  const totalDisplaced = useMemo(() =>
+    EVENTS.reduce((s, e) => s + (e.impact?.displaced ?? 0), 0), [])
 
   return (
     <div className={styles.screen}>
       <Header />
 
-      {/* ── Hero ── */}
+      {/* ── Compact hero bar ── */}
       <div className={styles.hero}>
-        <div className={styles.eyebrow}>Open Crisis Geospatial Data</div>
-        <h1 className={styles.title}>
-          Satellite imagery &amp; field data<br />
-          for every <span>major disaster.</span>
-        </h1>
-        <p className={styles.sub}>
-          Browse satellite scenes from Maxar and Satellogic, load curated damage assessments, flood extents, and administrative boundaries — all in one place.
-        </p>
-
-        {/* Search */}
-        <div className={styles.searchWrap}>
-          <span className={styles.searchIcon}><SearchIcon /></span>
-          <input
-            className={styles.searchInput}
-            type="text"
-            placeholder="Search by event name or location…"
-            value={query}
-            onChange={e => { setQuery(e.target.value); setFilter('all') }}
-            autoComplete="off"
-          />
-          {query && (
-            <button className={styles.clearBtn} onClick={() => setQuery('')}>✕</button>
-          )}
+        <div className={styles.heroInner}>
+          <div className={styles.heroLeft}>
+            <div className={styles.heroTag}>Open Crisis Geospatial Data</div>
+            <div className={styles.heroStats}>
+              <span>{totalEvents} events</span>
+              <span className={styles.heroDot}>·</span>
+              <span className={styles.heroRed}>{fmt(totalDeaths)} lives lost</span>
+              <span className={styles.heroDot}>·</span>
+              <span>{fmt(totalDisplaced)} displaced</span>
+            </div>
+          </div>
+          <div className={styles.heroSearch}>
+            <span className={styles.searchIcon}><SearchIcon /></span>
+            <input
+              className={styles.searchInput}
+              type="text"
+              placeholder="Search events or locations…"
+              value={query}
+              onChange={e => { setQuery(e.target.value); setFilter('all') }}
+              autoComplete="off"
+            />
+            {query && <button className={styles.clearBtn} onClick={() => setQuery('')}>✕</button>}
+          </div>
         </div>
       </div>
 
-      {/* ── Featured event banner ── */}
-      {!query && filter === 'all' && featured && (
-        <div className={styles.featuredWrap}>
-          <button className={styles.featured} onClick={() => onSelectEvent(featured)}>
-            <div className={styles.featuredThumb} style={{ background: featured.thumbGradient }}>
-              <img
-                src={esriTileUrl(featured.center, Math.min(featured.zoom - 1, 11))}
-                alt=""
-                className={styles.featuredThumbImg}
-                loading="lazy"
-              />
-              <div className={styles.featuredGradient} />
-            </div>
-            <div className={styles.featuredContent}>
-              <span className={styles.featuredEyebrow}>Latest Event</span>
-              <div className={styles.featuredName}>{featured.name}</div>
-              <div className={styles.featuredMeta}>
-                {featured.location} · {formatEventDate(featured.eventDate)}
-              </div>
-              <div className={styles.featuredData}>
-                <span className={styles.dataPill} style={{ background: 'rgba(10,175,184,.15)', color: '#0AAFB8', border: '1px solid rgba(10,175,184,.4)' }}>
-                  🛰 {featured.imageCount}+ satellite scenes
-                </span>
-                {featured.hdxLayers?.map(l => {
-                  const meta = DATA_TYPE_COLORS[l.type]
-                  return meta ? (
-                    <span key={l.url} className={styles.dataPill}
-                      style={{ background: meta.bg, color: meta.color, border: `1px solid ${meta.color}33` }}>
-                      {meta.label}
-                    </span>
-                  ) : null
-                })}
-              </div>
-              <div className={styles.featuredCta}>Open Event →</div>
-            </div>
-          </button>
+      {/* ── Controls: filter tabs + sort ── */}
+      <div className={styles.controls}>
+        <div className={styles.filterBar}>
+          {CAT_FILTERS.map(f => (
+            <button
+              key={f.id}
+              className={`${styles.filterTab} ${filter === f.id ? styles.filterTabActive : ''}`}
+              onClick={() => { setFilter(f.id); setQuery('') }}
+            >
+              <span className={styles.filterEmoji}>{f.emoji}</span>
+              {f.label}
+            </button>
+          ))}
         </div>
-      )}
-
-      {/* ── Filter tabs ── */}
-      <div className={styles.filterBar}>
-        {CAT_FILTERS.map(f => (
-          <button
-            key={f.id}
-            className={`${styles.filterTab} ${filter === f.id ? styles.filterTabActive : ''}`}
-            onClick={() => { setFilter(f.id); setQuery('') }}
-          >
-            <span className={styles.filterEmoji}>{f.emoji}</span>
-            {f.label}
-          </button>
-        ))}
+        <div className={styles.sortBar}>
+          <span className={styles.sortLabel}>Sort:</span>
+          {SORT_OPTIONS.map(s => (
+            <button
+              key={s.id}
+              className={`${styles.sortBtn} ${sort === s.id ? styles.sortBtnActive : ''}`}
+              onClick={() => setSort(s.id)}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* ── Event grid ── */}
       <div className={styles.gridWrap}>
-        {visibleEvents.length === 0 ? (
-          <div className={styles.empty}>
-            No events match "{query || filter}"
-          </div>
+        {visible.length === 0 ? (
+          <div className={styles.empty}>No events match "{query || filter}"</div>
         ) : (
           <div className={styles.grid}>
-            {visibleEvents.map(event => (
+            {visible.map(event => (
               <EventCard key={event.id} event={event} onClick={() => onSelectEvent(event)} />
             ))}
           </div>

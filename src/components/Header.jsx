@@ -7,7 +7,7 @@ const Logo = () => (
       <ellipse cx="10" cy="10" rx="4.5" ry="8" stroke="#0AAFB8" strokeWidth="1.5"/>
       <line x1="2" y1="10" x2="18" y2="10" stroke="#0AAFB8" strokeWidth="1.5"/>
     </svg>
-    Common Space
+    Disaster Commons
   </div>
 )
 
