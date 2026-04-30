@@ -7,7 +7,7 @@ import { fetchHDXResource, fetchUSGSShakeMap, formatToExt } from '../lib/hdx.js'
 import { fetchOSMLayer, OSM_LAYERS } from '../lib/osm.js'
 import { MAPLIBRE_STYLE } from '../lib/constants.js'
 import { formatPlatform, shortDate } from '../lib/utils.js'
-import { exportWithLayers, getCogBounds } from '../lib/export.js'
+import { exportWithLayers } from '../lib/export.js'
 import HDXPanel from './HDXPanel.jsx'
 import styles from './MapPanel.module.css'
 
@@ -565,14 +565,11 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
 
     setExporting(true)
     try {
-      // Resolve the COG's geographic extent in WGS84
-      const bbox = await getCogBounds(item.cogUrl, item.bbox)
-
       await exportWithLayers({
-        cogUrl:   item.cogUrl,
-        bbox,
-        layers:   uploadedLayersRef.current,
+        cogUrl:  item.cogUrl,
+        layers:  uploadedLayersRef.current,
         filename,
+        map:     mapRef.current,
       })
     } catch (err) {
       console.error('Export failed:', err)
