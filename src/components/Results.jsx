@@ -66,6 +66,12 @@ export default function Results({ event, onBack, onHome, onCompare }) {
     }
   }, [selected, event, onCompare])
 
+  // Called from MapPanel when user clicks "Compare" on the map hint
+  const handleSelectPair = useCallback((beforeItem, afterItem) => {
+    setSelected({ before: beforeItem, after: afterItem })
+    onCompare(beforeItem, afterItem, event)
+  }, [event, onCompare])
+
   return (
     <div className={styles.screen}>
       <Header event={event} onBack={onBack} backLabel="All Events" onHome={onHome} />
@@ -77,6 +83,7 @@ export default function Results({ event, onBack, onHome, onCompare }) {
           selectedItems={selected}
           previewRequest={previewRequest}
           onItemClick={handlePreview}
+          onSelectPair={handleSelectPair}
         />
         <ResultsPanel
           items={items}

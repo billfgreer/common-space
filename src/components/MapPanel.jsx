@@ -6,7 +6,7 @@ import { parseVectorFiles } from '../lib/vectorParse.js'
 import { fetchHDXResource, fetchUSGSShakeMap, formatToExt } from '../lib/hdx.js'
 import { fetchOSMLayer, OSM_LAYERS } from '../lib/osm.js'
 import { MAPLIBRE_STYLE } from '../lib/constants.js'
-import { formatPlatform } from '../lib/utils.js'
+import { formatPlatform, shortDate } from '../lib/utils.js'
 import HDXPanel from './HDXPanel.jsx'
 import styles from './MapPanel.module.css'
 
@@ -61,7 +61,7 @@ const UploadIcon = () => (
 
 // ─── MapPanel ─────────────────────────────────────────────────────────────────
 
-export default function MapPanel({ event, items, hoveredId, selectedItems, previewRequest, onItemClick }) {
+export default function MapPanel({ event, items, hoveredId, selectedItems, previewRequest, onItemClick, onSelectPair }) {
   const containerRef       = useRef(null)
   const mapRef             = useRef(null)
   const initialised        = useRef(false)
@@ -71,11 +71,15 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
   const cursorLayersRef    = useRef(new Set()) // tracks which upload src IDs have cursor handlers
 
   // Stable refs so map event handlers never capture stale props
-  const itemsRef       = useRef(items)
-  const eventRef       = useRef(event)
-  const onItemClickRef = useRef(onItemClick)
-  const showBeforeRef  = useRef(true)
-  const showAfterRef   = useRef(true)
+  const itemsRef        = useRef(items)
+  const eventRef        = useRef(event)
+  const onItemClickRef  = useRef(onItemClick)
+  const onSelectPairRef = useRef(onSelectPair)
+  const showBeforeRef   = useRef(true)
+  const showAfterRef    = useRef(true)
+
+  // Compare hint: shown when a map click finds both before & after footprints
+  const [compareHint, setCompareHint] = useState(null) // { x, y, beforeItem, afterItem }
 
   const [showBefore, setShowBefore] = useState(true)
   const [showAfter,  setShowAfter]  = useState(true)
@@ -98,11 +102,12 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
   const [osmLoading, setOsmLoading] = useState({}) // layerId -> true
   const [osmErrors,  setOsmErrors]  = useState({}) // layerId -> string
 
-  useEffect(() => { itemsRef.current        = items       }, [items])
-  useEffect(() => { eventRef.current        = event       }, [event])
-  useEffect(() => { onItemClickRef.current  = onItemClick }, [onItemClick])
-  useEffect(() => { showBeforeRef.current   = showBefore  }, [showBefore])
-  useEffect(() => { showAfterRef.current    = showAfter   }, [showAfter])
+  useEffect(() => { itemsRef.current        = items        }, [items])
+  useEffect(() => { eventRef.current        = event        }, [event])
+  useEffect(() => { onItemClickRef.current  = onItemClick  }, [onItemClick])
+  useEffect(() => { onSelectPairRef.current = onSelectPair }, [onSelectPair])
+  useEffect(() => { showBeforeRef.current   = showBefore   }, [showBefore])
+  useEffect(() => { showAfterRef.current    = showAfter    }, [showAfter])
   useEffect(() => { uploadedLayersRef.current = uploadedLayers }, [uploadedLayers])
 
   // ── Init map once ─────────────────────────────────────────────────────────
@@ -149,11 +154,33 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
       })
 
       map.on('click', 'fp-fill', e => {
-        const feature = e.features?.[0]
-        if (!feature) return
-        const item = itemsRef.current.find(i => i.id === feature.properties.id)
-        if (!item) return
-        onItemClickRef.current?.(item)
+        // Query ALL footprints overlapping this point, not just the topmost
+        const allFeatures = map.queryRenderedFeatures(e.point, { layers: ['fp-fill'] })
+        const allItems = allFeatures
+          .map(f => itemsRef.current.find(i => i.id === f.properties.id))
+          .filter(Boolean)
+
+        const beforeItems = allItems.filter(i => i.timing === 'before')
+        const afterItems  = allItems.filter(i => i.timing === 'after')
+
+        if (beforeItems.length && afterItems.length) {
+          // Best pair: most recent before + earliest after
+          const beforeItem = beforeItems.sort((a, b) => (b.datetime ?? 0) - (a.datetime ?? 0))[0]
+          const afterItem  = afterItems.sort((a, b)  => (a.datetime ?? 0) - (b.datetime ?? 0))[0]
+
+          // Anchor hint to click position within the map container
+          const rect = e.target.getContainer().getBoundingClientRect()
+          const x = e.originalEvent.clientX - rect.left
+          const y = e.originalEvent.clientY - rect.top
+
+          setCompareHint({ x, y, beforeItem, afterItem })
+          // Also preview the after image so the map updates
+          onItemClickRef.current?.(afterItem)
+        } else {
+          setCompareHint(null)
+          const item = allItems[0]
+          if (item) onItemClickRef.current?.(item)
+        }
       })
       map.on('mouseenter', 'fp-fill', () => { map.getCanvas().style.cursor = 'pointer' })
       map.on('mouseleave', 'fp-fill', () => { map.getCanvas().style.cursor = '' })
@@ -521,6 +548,36 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
       onDrop={onDrop}
     >
       <div ref={containerRef} className={styles.map} />
+
+      {/* Compare hint — appears at click point when before+after footprints overlap */}
+      {compareHint && (
+        <div
+          className={styles.compareHint}
+          style={{ left: compareHint.x, top: compareHint.y }}
+        >
+          <button className={styles.compareHintClose} onClick={() => setCompareHint(null)}>✕</button>
+          <div className={styles.compareHintTitle}>Before &amp; After available here</div>
+          <div className={styles.compareHintDates}>
+            <span className={styles.compareHintBefore}>
+              ◀ {shortDate(compareHint.beforeItem.datetime?.toISOString())}
+              {compareHint.beforeItem.platform ? ` · ${formatPlatform(compareHint.beforeItem.platform)}` : ''}
+            </span>
+            <span className={styles.compareHintAfter}>
+              ▶ {shortDate(compareHint.afterItem.datetime?.toISOString())}
+              {compareHint.afterItem.platform ? ` · ${formatPlatform(compareHint.afterItem.platform)}` : ''}
+            </span>
+          </div>
+          <button
+            className={styles.compareHintBtn}
+            onClick={() => {
+              onSelectPairRef.current?.(compareHint.beforeItem, compareHint.afterItem)
+              setCompareHint(null)
+            }}
+          >
+            ↔ Compare Images
+          </button>
+        </div>
+      )}
 
       {/* Drag overlay */}
       {isDragging && (

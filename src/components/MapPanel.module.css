@@ -69,6 +69,75 @@
   box-shadow: 0 8px 32px rgba(0,0,0,.15);
 }
 
+/* ─── Compare hint popup (anchored to map click point) ─────────────────────── */
+
+.compareHint {
+  position: absolute;
+  z-index: 30;
+  transform: translate(-50%, calc(-100% - 14px)); /* centre above click point */
+  background: rgba(15, 23, 42, 0.96);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 12px;
+  padding: 12px 14px;
+  min-width: 220px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.45);
+  color: #f1f5f9;
+  pointer-events: auto;
+}
+/* Small arrow pointing down */
+.compareHint::after {
+  content: '';
+  position: absolute;
+  bottom: -7px;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 7px solid transparent;
+  border-bottom: none;
+  border-top-color: rgba(15, 23, 42, 0.96);
+}
+
+.compareHintClose {
+  position: absolute;
+  top: 8px; right: 8px;
+  background: none; border: none;
+  color: #94a3b8; font-size: 12px;
+  cursor: pointer; line-height: 1;
+  padding: 2px 4px; border-radius: 4px;
+}
+.compareHintClose:hover { color: #f1f5f9; background: rgba(255,255,255,.08); }
+
+.compareHintTitle {
+  font-size: 11px; font-weight: 700;
+  letter-spacing: .4px; text-transform: uppercase;
+  color: #94a3b8; margin-bottom: 8px;
+  padding-right: 18px; /* avoid overlap with close btn */
+}
+
+.compareHintDates {
+  display: flex; flex-direction: column; gap: 4px;
+  margin-bottom: 10px;
+}
+
+.compareHintBefore,
+.compareHintAfter {
+  font-size: 12px; font-weight: 500;
+}
+.compareHintBefore { color: #fbbf24; } /* amber — before */
+.compareHintAfter  { color: #34d399; } /* green — after */
+
+.compareHintBtn {
+  width: 100%;
+  padding: 8px;
+  background: linear-gradient(135deg, #0ea5e9, #6366f1);
+  border: none; border-radius: 8px;
+  color: #fff; font-size: 12px; font-weight: 700;
+  cursor: pointer;
+  transition: opacity .15s, transform .1s;
+}
+.compareHintBtn:hover { opacity: .9; transform: translateY(-1px); }
+.compareHintBtn:active { transform: translateY(0); }
+
 /* ─── Layer panel (bottom-left) ───────────────────────────────────────────── */
 
 .layerPanel {
