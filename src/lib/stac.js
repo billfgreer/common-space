@@ -90,7 +90,7 @@ function parseCollLinkMeta(href) {
 // Two-pass strategy for Maxar-style catalogs:
 //   Pass 0 — parse grid cell + date from all childLink hrefs (no network!)
 //   Pass 1 — find cells with both pre+post coverage; fetch those sub-collection JSONs
-//   Pass 2 — fetch the actual item JSON files
+//   Pass 2 — fetch ALL item JSON files within each selected collection
 async function streamMaxarStyle(rootNode, catalogUrl, maxItems, eventDate, onItem, signal) {
   const base = catalogUrl.replace(/[^/]+$/, '')
   const childLinks = rootNode.links.filter(l => l.rel === 'child')
@@ -101,7 +101,7 @@ async function streamMaxarStyle(rootNode, catalogUrl, maxItems, eventDate, onIte
     .filter(m => m.gridCell && m.date)
 
   if (!linkMetas.length) {
-    // Fallback: can't extract from hrefs, use old single-item-per-collection approach
+    // Fallback: can't extract metadata from hrefs — fetch all collection JSONs then sample
     const summaries = (await Promise.allSettled(
       childLinks.map(async link => {
         if (signal?.aborted) return null
@@ -119,12 +119,21 @@ async function streamMaxarStyle(rootNode, catalogUrl, maxItems, eventDate, onIte
       .filter(r => r.status === 'fulfilled' && r.value?.date)
       .map(r => r.value)
       .sort((a, b) => a.date - b.date)
+
+    // Fetch ALL items from each sampled collection (not just the first)
+    let fetched = 0
     const selected = evenSample(summaries, maxItems)
-    await Promise.allSettled(selected.map(async s => {
-      const itemUrl = resolveHref(s.collBase, s.itemLinks[0].href)
-      if (!itemUrl) return
-      try { const item = await fetchJSON(itemUrl); if (item && !signal?.aborted) onItem?.(normaliseItem(item, itemUrl)) } catch {}
-    }))
+    await Promise.allSettled(selected.flatMap(s =>
+      s.itemLinks.map(async link => {
+        if (signal?.aborted || fetched >= maxItems) return
+        const itemUrl = resolveHref(s.collBase, link.href)
+        if (!itemUrl) return
+        try {
+          const item = await fetchJSON(itemUrl)
+          if (item && !signal?.aborted) { fetched++; onItem?.(normaliseItem(item, itemUrl)) }
+        } catch {}
+      })
+    ))
     return
   }
 
@@ -142,26 +151,28 @@ async function streamMaxarStyle(rootNode, catalogUrl, maxItems, eventDate, onIte
   }
 
   // Find cells with both pre- and post-event coverage
-  const pairedCells = Object.entries(byCell).filter(([, v]) => v.pre.length && v.post.length)
+  const pairedCells  = Object.entries(byCell).filter(([, v]) => v.pre.length && v.post.length)
   const unpairedPre  = Object.entries(byCell).filter(([, v]) => v.pre.length  && !v.post.length).flatMap(([, v]) => v.pre)
   const unpairedPost = Object.entries(byCell).filter(([, v]) => v.post.length && !v.pre.length).flatMap(([, v]) => v.post)
 
-  // Sample: prefer paired cells, fill remainder with unpaired
-  const pairSlots  = Math.min(pairedCells.length, Math.ceil(maxItems / 2))
-  const fillSlots  = maxItems - pairSlots * 2
+  // Each paired cell contributes up to 4 collections (2 most-recent pre + 2 earliest post)
+  // for temporal depth; fill remaining slots with unpaired cells
+  const ACQS_PER_CELL = 4
+  const pairSlots  = Math.min(pairedCells.length, Math.ceil(maxItems / ACQS_PER_CELL))
+  const fillSlots  = maxItems - pairSlots * ACQS_PER_CELL
   const sampledPairs = evenSample(pairedCells, pairSlots)
   const sampledFill  = evenSample([...unpairedPre, ...unpairedPost], Math.max(0, fillSlots))
 
-  // Collect collection URLs to fetch
+  // Collect collection URLs — 2 most-recent pre + 2 earliest post per paired cell
   const collsToFetch = [
     ...sampledPairs.flatMap(([, v]) => [
-      v.pre[v.pre.length - 1],   // most recent pre-event for this cell
-      v.post[0],                  // earliest post-event for this cell
+      ...v.pre.slice(-2),    // 2 most recent pre-event acquisitions for this cell
+      ...v.post.slice(0, 2), // 2 earliest post-event acquisitions for this cell
     ]),
     ...sampledFill,
   ].map(m => resolveHref(base, m.href)).filter(Boolean)
 
-  // Pass 1: fetch the selected sub-collection JSONs to get item hrefs
+  // Pass 1: fetch selected sub-collection JSONs to get item hrefs
   const collDatas = (await Promise.allSettled(
     collsToFetch.map(async url => {
       if (signal?.aborted) return null
@@ -176,17 +187,20 @@ async function streamMaxarStyle(rootNode, catalogUrl, maxItems, eventDate, onIte
     .filter(r => r.status === 'fulfilled' && r.value)
     .map(r => r.value)
 
-  // Pass 2: fetch one item per collection
+  // Pass 2: fetch ALL items within each selected collection
+  let fetched = 0
   await Promise.allSettled(
-    collDatas.slice(0, maxItems).map(async ({ collBase, itemLinks }) => {
-      if (signal?.aborted) return
-      const itemUrl = resolveHref(collBase, itemLinks[0].href)
-      if (!itemUrl) return
-      try {
-        const item = await fetchJSON(itemUrl)
-        if (item && !signal?.aborted) onItem?.(normaliseItem(item, itemUrl))
-      } catch { /* skip */ }
-    })
+    collDatas.flatMap(({ collBase, itemLinks }) =>
+      itemLinks.map(async link => {
+        if (signal?.aborted || fetched >= maxItems) return
+        const itemUrl = resolveHref(collBase, link.href)
+        if (!itemUrl) return
+        try {
+          const item = await fetchJSON(itemUrl)
+          if (item && !signal?.aborted) { fetched++; onItem?.(normaliseItem(item, itemUrl)) }
+        } catch { /* skip */ }
+      })
+    )
   )
 }
 
@@ -218,8 +232,8 @@ async function walkSimple(url, maxItems, onItem, signal) {
     const childLinks = links.filter(l => l.rel === 'child')
 
     if (itemLinks.length) {
-      // Take one item per catalog node to spread coverage, then move on
-      const take = Math.min(3, maxItems - found, itemLinks.length)
+      // Take up to 20 items per catalog node for good coverage at each location
+      const take = Math.min(20, maxItems - found, itemLinks.length)
       const sampled = evenSample(itemLinks, take)
       for (const l of sampled) {
         if (found >= maxItems || signal?.aborted) return
@@ -230,7 +244,7 @@ async function walkSimple(url, maxItems, onItem, signal) {
     }
     if (childLinks.length) {
       // Sample children evenly so we get geographic/temporal spread
-      const limit = depth === 0 ? 20 : depth === 1 ? 8 : 4
+      const limit = depth === 0 ? 60 : depth === 1 ? 25 : 12
       const sampled = evenSample(childLinks, Math.min(limit, childLinks.length))
       for (const l of sampled) {
         if (found >= maxItems || signal?.aborted) return

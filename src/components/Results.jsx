@@ -29,7 +29,7 @@ export default function Results({ event, onBack, onHome, onCompare }) {
     setPreviewRequest(null)
 
     streamEventItems(event.catalogUrl, {
-      maxItems: 80,
+      maxItems: 500,
       eventDate: event.eventDate,
       signal: controller.signal,
       onItem: item => {
