@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { EVENTS } from '../lib/events.js'
-import { esriTileUrl, shortDate, impactScore, topStat, fmtNum, fmtCost } from '../lib/utils.js'
+import { esriTileUrl, shortDate, impactScore, topStat, fmtNum, fmtCost, formatDate } from '../lib/utils.js'
 import Header from './Header.jsx'
 import styles from './Landing.module.css'
 
@@ -62,10 +62,25 @@ function getProvider(event) {
 const ARCHIVE_SOURCES = new Set(['satellogic', 'umbra'])
 
 const SORT_OPTIONS = [
-  { id: 'impact', label: 'Human Impact' },
   { id: 'recent', label: 'Most Recent'  },
+  { id: 'impact', label: 'Human Impact' },
   { id: 'cost',   label: 'Economic Cost'},
 ]
+
+// ─── Featured event ───────────────────────────────────────────────────────────
+// Auto-selects the most impactful event from the last 24 months for the hero banner.
+function getFeaturedEvent() {
+  const cutoff = new Date()
+  cutoff.setMonth(cutoff.getMonth() - 24)
+  const recent = EVENTS.filter(e =>
+    e.eventDate &&
+    new Date(e.eventDate) >= cutoff &&
+    e.impact?.deaths > 0 &&
+    !(ARCHIVE_SOURCES.has(e.source) || e.type === 'Archive')
+  )
+  if (!recent.length) return null
+  return [...recent].sort((a, b) => impactScore(b) - impactScore(a))[0]
+}
 
 const DATA_TYPE_COLORS = {
   damage:     { color: '#dc2626', label: 'Damage' },
@@ -86,6 +101,68 @@ const SearchIcon = () => (
     <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
   </svg>
 )
+
+// ─── Featured disaster banner ─────────────────────────────────────────────────
+function FeaturedBanner({ event, onClick }) {
+  const d = event.impact
+  return (
+    <button className={styles.featured} onClick={onClick}>
+      {/* Map tile base + gradient overlay */}
+      <div className={styles.featuredBg} style={{ background: event.thumbGradient }} />
+      <img
+        src={esriTileUrl(event.center, Math.min(event.zoom, 11))}
+        alt=""
+        className={styles.featuredImg}
+        loading="lazy"
+      />
+      <div className={styles.featuredOverlay} />
+
+      {/* Content */}
+      <div className={styles.featuredContent}>
+        <div className={styles.featuredLabel}>
+          <span className={styles.featuredPulse} />
+          Largest Recent Disaster
+        </div>
+
+        <div className={styles.featuredName}>
+          {event.emoji} {event.name}
+        </div>
+        <div className={styles.featuredMeta}>
+          {event.location} &nbsp;·&nbsp; {formatDate(event.eventDate)}
+        </div>
+
+        <div className={styles.featuredStats}>
+          {d?.deaths > 0 && (
+            <div className={styles.featuredStat}>
+              <span className={styles.featuredStatVal}>{fmtNum(d.deaths)}</span>
+              <span className={styles.featuredStatLabel}>lives lost</span>
+            </div>
+          )}
+          {d?.displaced > 0 && (
+            <div className={styles.featuredStat}>
+              <span className={styles.featuredStatVal}>{fmtNum(d.displaced)}</span>
+              <span className={styles.featuredStatLabel}>displaced</span>
+            </div>
+          )}
+          {d?.homesDestroyed > 0 && (
+            <div className={styles.featuredStat}>
+              <span className={styles.featuredStatVal}>{fmtNum(d.homesDestroyed)}</span>
+              <span className={styles.featuredStatLabel}>homes lost</span>
+            </div>
+          )}
+          {d?.costUSD > 0 && (
+            <div className={styles.featuredStat}>
+              <span className={styles.featuredStatVal}>{fmtCost(d.costUSD)}</span>
+              <span className={styles.featuredStatLabel}>est. damage</span>
+            </div>
+          )}
+        </div>
+
+        <div className={styles.featuredCta}>Explore Event →</div>
+      </div>
+    </button>
+  )
+}
 
 // ─── Event card ───────────────────────────────────────────────────────────────
 function EventCard({ event, onClick }) {
@@ -175,7 +252,10 @@ export default function Landing({ onSelectEvent }) {
   const [query,    setQuery]    = useState('')
   const [filter,   setFilter]   = useState('all')
   const [provider, setProvider] = useState('all')
-  const [sort,     setSort]     = useState('impact')
+  const [sort,     setSort]     = useState('recent')
+
+  // Pre-compute the featured event once — changes only when EVENTS changes
+  const featuredEvent = useMemo(() => getFeaturedEvent(), [])
 
   const baseEvents = useMemo(() => {
     const isArchive = e => ARCHIVE_SOURCES.has(e.source) || e.type === 'Archive'
@@ -290,6 +370,13 @@ export default function Landing({ onSelectEvent }) {
           })}
         </div>
       </div>
+
+      {/* ── Featured disaster banner ── */}
+      {featuredEvent && filter === 'all' && provider === 'all' && !query && (
+        <div className={styles.featuredWrap}>
+          <FeaturedBanner event={featuredEvent} onClick={() => onSelectEvent(featuredEvent)} />
+        </div>
+      )}
 
       {/* ── Event grid ── */}
       <div className={styles.gridWrap}>

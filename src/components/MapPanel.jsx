@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
-import { cogTileUrl } from '../lib/titiler.js'
+import { cogTileUrl, cogThumbnailTileUrl } from '../lib/titiler.js'
 import { parseVectorFiles } from '../lib/vectorParse.js'
 import { fetchHDXResource, fetchUSGSShakeMap, formatToExt } from '../lib/hdx.js'
 import { fetchOSMLayer, OSM_LAYERS } from '../lib/osm.js'
@@ -25,6 +25,91 @@ const UPLOAD_COLORS = [
   '#e74c3c', '#3498db', '#2ecc71', '#f39c12',
   '#9b59b6', '#1abc9c', '#e67e22', '#e91e63',
 ]
+
+// ─── Stack Picker ─────────────────────────────────────────────────────────────
+// Floating card anchored to a map click that lists every image stacked at that
+// point. The user can see all options, pick one to load on the map, and optionally
+// jump straight to a before/after comparison.
+
+function StackRow({ item, isActive, onSelect }) {
+  const [imgErr, setImgErr] = useState(false)
+  const src = !imgErr && item.thumbnailUrl
+    ? item.thumbnailUrl
+    : item.cogUrl
+    ? cogThumbnailTileUrl(item.cogUrl, item.bbox)
+    : null
+
+  return (
+    <button
+      className={`${styles.stackRow} ${isActive ? styles.stackRowActive : ''}`}
+      onClick={() => onSelect(item)}
+    >
+      <div className={styles.stackThumb}>
+        {src
+          ? <img src={src} alt="" className={styles.stackThumbImg} onError={() => setImgErr(true)} />
+          : <div className={styles.stackThumbBlank} />
+        }
+      </div>
+      <div className={styles.stackMeta}>
+        <div className={styles.stackDate}>{shortDate(item.datetime?.toISOString())}</div>
+        <div className={styles.stackPlatform}>{formatPlatform(item.platform)}</div>
+      </div>
+      <div className={styles.stackRight}>
+        <span className={`${styles.stackTiming} ${item.timing === 'before' ? styles.stackTimingBefore : styles.stackTimingAfter}`}>
+          {item.timing}
+        </span>
+        {isActive && <span className={styles.stackOnMap}>◉</span>}
+      </div>
+    </button>
+  )
+}
+
+function StackPicker({ x, y, items, onPreview, onCompare, onClose }) {
+  const [activeId, setActiveId] = useState(items[0]?.id ?? null)
+
+  const beforeItems = items.filter(i => i.timing === 'before')
+  const afterItems  = items.filter(i => i.timing === 'after')
+  const hasPair     = beforeItems.length > 0 && afterItems.length > 0
+  const bestBefore  = hasPair ? [...beforeItems].sort((a, b) => (b.datetime ?? 0) - (a.datetime ?? 0))[0] : null
+  const bestAfter   = hasPair ? [...afterItems].sort((a, b)  => (a.datetime ?? 0) - (b.datetime ?? 0))[0] : null
+
+  function handleSelect(item) {
+    setActiveId(item.id)
+    onPreview(item)
+  }
+
+  return (
+    <div className={styles.stackPicker} style={{ left: x, top: y }}>
+      <div className={styles.stackPickerArrow} />
+      <div className={styles.stackPickerHeader}>
+        <span className={styles.stackPickerTitle}>
+          {items.length} image{items.length !== 1 ? 's' : ''} at this location
+        </span>
+        <button className={styles.stackPickerClose} onClick={onClose}>✕</button>
+      </div>
+      <div className={styles.stackPickerList}>
+        {items.map(item => (
+          <StackRow
+            key={item.id}
+            item={item}
+            isActive={item.id === activeId}
+            onSelect={handleSelect}
+          />
+        ))}
+      </div>
+      {hasPair && (
+        <div className={styles.stackPickerFooter}>
+          <button
+            className={styles.stackCompareBtn}
+            onClick={() => { onCompare(bestBefore, bestAfter); onClose() }}
+          >
+            ↔ Compare Before / After
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
 
 // Type badge colours for curated event data layers
 const TYPE_META = {
@@ -95,8 +180,8 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
   const showBeforeRef   = useRef(true)
   const showAfterRef    = useRef(true)
 
-  // Compare hint: shown when a map click finds both before & after footprints
-  const [compareHint, setCompareHint] = useState(null) // { x, y, beforeItem, afterItem }
+  // Stack picker: shown when a map click finds 2+ overlapping footprints
+  const [stackPicker, setStackPicker] = useState(null) // { x, y, items }
 
   const [showBefore, setShowBefore] = useState(true)
   const [showAfter,  setShowAfter]  = useState(true)
@@ -176,32 +261,30 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
       })
 
       map.on('click', 'fp-fill', e => {
-        // Query ALL footprints overlapping this point, not just the topmost
+        // Query ALL footprints at this point, deduplicate by id
         const allFeatures = map.queryRenderedFeatures(e.point, { layers: ['fp-fill'] })
+        const seen = new Set()
         const allItems = allFeatures
           .map(f => itemsRef.current.find(i => i.id === f.properties.id))
           .filter(Boolean)
+          .filter(item => { if (seen.has(item.id)) return false; seen.add(item.id); return true })
 
-        const beforeItems = allItems.filter(i => i.timing === 'before')
-        const afterItems  = allItems.filter(i => i.timing === 'after')
+        if (!allItems.length) return
 
-        if (beforeItems.length && afterItems.length) {
-          // Best pair: most recent before + earliest after
-          const beforeItem = beforeItems.sort((a, b) => (b.datetime ?? 0) - (a.datetime ?? 0))[0]
-          const afterItem  = afterItems.sort((a, b)  => (a.datetime ?? 0) - (b.datetime ?? 0))[0]
+        // Always preview the first item immediately
+        onItemClickRef.current?.(allItems[0])
 
-          // Anchor hint to click position within the map container
+        if (allItems.length > 1) {
+          // Multiple images — show the stack picker so user can browse and choose
           const rect = e.target.getContainer().getBoundingClientRect()
-          const x = e.originalEvent.clientX - rect.left
-          const y = e.originalEvent.clientY - rect.top
-
-          setCompareHint({ x, y, beforeItem, afterItem })
-          // Also preview the after image so the map updates
-          onItemClickRef.current?.(afterItem)
+          setStackPicker({
+            x: e.originalEvent.clientX - rect.left,
+            y: e.originalEvent.clientY - rect.top,
+            items: allItems,
+          })
         } else {
-          setCompareHint(null)
-          const item = allItems[0]
-          if (item) onItemClickRef.current?.(item)
+          // Single image — preview directly, no picker needed
+          setStackPicker(null)
         }
       })
       map.on('mouseenter', 'fp-fill', () => { map.getCanvas().style.cursor = 'pointer' })
@@ -635,34 +718,16 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
     >
       <div ref={containerRef} className={styles.map} />
 
-      {/* Compare hint — appears at click point when before+after footprints overlap */}
-      {compareHint && (
-        <div
-          className={styles.compareHint}
-          style={{ left: compareHint.x, top: compareHint.y }}
-        >
-          <button className={styles.compareHintClose} onClick={() => setCompareHint(null)}>✕</button>
-          <div className={styles.compareHintTitle}>Before &amp; After available here</div>
-          <div className={styles.compareHintDates}>
-            <span className={styles.compareHintBefore}>
-              ◀ {shortDate(compareHint.beforeItem.datetime?.toISOString())}
-              {compareHint.beforeItem.platform ? ` · ${formatPlatform(compareHint.beforeItem.platform)}` : ''}
-            </span>
-            <span className={styles.compareHintAfter}>
-              ▶ {shortDate(compareHint.afterItem.datetime?.toISOString())}
-              {compareHint.afterItem.platform ? ` · ${formatPlatform(compareHint.afterItem.platform)}` : ''}
-            </span>
-          </div>
-          <button
-            className={styles.compareHintBtn}
-            onClick={() => {
-              onSelectPairRef.current?.(compareHint.beforeItem, compareHint.afterItem)
-              setCompareHint(null)
-            }}
-          >
-            ↔ Compare Images
-          </button>
-        </div>
+      {/* Stack picker — appears at click point when 2+ images overlap */}
+      {stackPicker && (
+        <StackPicker
+          x={stackPicker.x}
+          y={stackPicker.y}
+          items={stackPicker.items}
+          onPreview={item => onItemClickRef.current?.(item)}
+          onCompare={(before, after) => onSelectPairRef.current?.(before, after)}
+          onClose={() => setStackPicker(null)}
+        />
       )}
 
       {/* Drag overlay */}

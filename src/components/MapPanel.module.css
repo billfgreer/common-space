@@ -69,74 +69,180 @@
   box-shadow: 0 8px 32px rgba(0,0,0,.15);
 }
 
-/* ─── Compare hint popup (anchored to map click point) ─────────────────────── */
+/* ─── Stack Picker (anchored to map click point) ────────────────────────────── */
 
-.compareHint {
+.stackPicker {
   position: absolute;
   z-index: 30;
-  transform: translate(-50%, calc(-100% - 14px)); /* centre above click point */
-  background: rgba(15, 23, 42, 0.96);
-  backdrop-filter: blur(10px);
+  transform: translate(-50%, calc(-100% - 14px));
+  background: rgba(15, 23, 42, 0.97);
+  backdrop-filter: blur(12px);
   border: 1px solid rgba(255,255,255,.12);
   border-radius: 12px;
-  padding: 12px 14px;
-  min-width: 220px;
-  box-shadow: 0 8px 32px rgba(0,0,0,.45);
+  min-width: 264px;
+  max-width: 308px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.55);
   color: #f1f5f9;
   pointer-events: auto;
+  overflow: hidden;
 }
-/* Small arrow pointing down */
-.compareHint::after {
-  content: '';
+
+/* Down-pointing arrow */
+.stackPickerArrow {
   position: absolute;
   bottom: -7px;
   left: 50%;
   transform: translateX(-50%);
+  width: 0; height: 0;
   border: 7px solid transparent;
   border-bottom: none;
-  border-top-color: rgba(15, 23, 42, 0.96);
+  border-top-color: rgba(15, 23, 42, 0.97);
 }
 
-.compareHintClose {
-  position: absolute;
-  top: 8px; right: 8px;
+.stackPickerHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+
+.stackPickerTitle {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .4px;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.stackPickerClose {
   background: none; border: none;
   color: #94a3b8; font-size: 12px;
   cursor: pointer; line-height: 1;
-  padding: 2px 4px; border-radius: 4px;
+  padding: 2px 5px; border-radius: 4px;
+  transition: color .1s, background .1s;
 }
-.compareHintClose:hover { color: #f1f5f9; background: rgba(255,255,255,.08); }
+.stackPickerClose:hover { color: #f1f5f9; background: rgba(255,255,255,.08); }
 
-.compareHintTitle {
-  font-size: 11px; font-weight: 700;
-  letter-spacing: .4px; text-transform: uppercase;
-  color: #94a3b8; margin-bottom: 8px;
-  padding-right: 18px; /* avoid overlap with close btn */
-}
-
-.compareHintDates {
-  display: flex; flex-direction: column; gap: 4px;
-  margin-bottom: 10px;
+.stackPickerList {
+  max-height: 264px;
+  overflow-y: auto;
+  padding: 4px 0;
 }
 
-.compareHintBefore,
-.compareHintAfter {
-  font-size: 12px; font-weight: 500;
+/* ── Stack row ── */
+.stackRow {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  color: #f1f5f9;
+  transition: background .12s;
 }
-.compareHintBefore { color: #fbbf24; } /* amber — before */
-.compareHintAfter  { color: #34d399; } /* green — after */
+.stackRow:hover    { background: rgba(255,255,255,.06); }
+.stackRowActive    { background: rgba(10,175,184,.12); }
+.stackRowActive:hover { background: rgba(10,175,184,.18); }
 
-.compareHintBtn {
+.stackThumb {
+  width: 46px;
+  height: 38px;
+  border-radius: 5px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: rgba(255,255,255,.07);
+}
+
+.stackThumbImg {
+  width: 100%; height: 100%;
+  object-fit: cover;
+}
+
+.stackThumbBlank {
+  width: 100%; height: 100%;
+  background: linear-gradient(135deg, rgba(255,255,255,.07), rgba(255,255,255,.02));
+}
+
+.stackMeta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stackDate {
+  font-size: 11px;
+  font-weight: 600;
+  color: #e2e8f0;
+  white-space: nowrap;
+}
+
+.stackPlatform {
+  font-size: 10px;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stackRight {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.stackTiming {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .3px;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.stackTimingBefore {
+  background: rgba(232,184,32,.15);
+  color: #fbbf24;
+}
+
+.stackTimingAfter {
+  background: rgba(10,175,184,.15);
+  color: #34d399;
+}
+
+.stackOnMap {
+  font-size: 11px;
+  color: var(--cyan);
+  line-height: 1;
+}
+
+/* ── Footer with compare button ── */
+.stackPickerFooter {
+  padding: 8px 10px;
+  border-top: 1px solid rgba(255,255,255,.08);
+}
+
+.stackCompareBtn {
   width: 100%;
   padding: 8px;
   background: linear-gradient(135deg, #0ea5e9, #6366f1);
-  border: none; border-radius: 8px;
-  color: #fff; font-size: 12px; font-weight: 700;
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
   cursor: pointer;
   transition: opacity .15s, transform .1s;
 }
-.compareHintBtn:hover { opacity: .9; transform: translateY(-1px); }
-.compareHintBtn:active { transform: translateY(0); }
+.stackCompareBtn:hover  { opacity: .9; transform: translateY(-1px); }
+.stackCompareBtn:active { transform: translateY(0); }
 
 /* ─── Layer panel (bottom-left) ───────────────────────────────────────────── */
 

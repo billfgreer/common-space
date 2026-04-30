@@ -234,6 +234,153 @@
   transition: opacity .12s;
 }
 
+/* ─── Featured disaster banner ───────────────────────────────────────────────  */
+.featuredWrap {
+  padding: 0 24px 14px;
+  max-width: 1080px;
+  margin: 0 auto;
+  width: 100%;
+  flex-shrink: 0;
+}
+
+.featured {
+  position: relative;
+  width: 100%;
+  min-height: 180px;
+  border-radius: 14px;
+  overflow: hidden;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  display: flex;
+  align-items: flex-end;
+  transition: transform .18s, box-shadow .18s;
+  box-shadow: 0 4px 24px rgba(0,0,0,.18);
+}
+.featured:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 36px rgba(0,0,0,.26);
+}
+
+.featuredBg {
+  position: absolute; inset: 0;
+}
+
+.featuredImg {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity .5s ease;
+  mix-blend-mode: luminosity;
+  filter: saturate(0.6) brightness(0.7);
+}
+.featuredImg[src] { opacity: 1; }
+
+/* Dark gradient covering bottom two-thirds */
+.featuredOverlay {
+  position: absolute; inset: 0;
+  background: linear-gradient(
+    to right,
+    rgba(10, 14, 26, 0.92) 0%,
+    rgba(10, 14, 26, 0.75) 55%,
+    rgba(10, 14, 26, 0.15) 100%
+  );
+}
+
+.featuredContent {
+  position: relative;
+  z-index: 2;
+  padding: 22px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  max-width: 680px;
+}
+
+/* Animated "live" badge */
+.featuredLabel {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: #f87171;
+}
+
+.featuredPulse {
+  display: inline-block;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #f87171;
+  box-shadow: 0 0 0 0 rgba(248,113,113,.7);
+  animation: pulse 2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes pulse {
+  0%   { box-shadow: 0 0 0 0   rgba(248,113,113,.7); }
+  70%  { box-shadow: 0 0 0 8px rgba(248,113,113,.0); }
+  100% { box-shadow: 0 0 0 0   rgba(248,113,113,.0); }
+}
+
+.featuredName {
+  font-size: 22px;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1.2;
+  letter-spacing: -.3px;
+  text-shadow: 0 2px 8px rgba(0,0,0,.4);
+}
+
+.featuredMeta {
+  font-size: 12px;
+  color: rgba(255,255,255,.55);
+  font-weight: 500;
+}
+
+.featuredStats {
+  display: flex;
+  gap: 20px;
+  margin-top: 2px;
+  flex-wrap: wrap;
+}
+
+.featuredStat {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.featuredStatVal {
+  font-size: 18px;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1;
+  letter-spacing: -.5px;
+}
+
+.featuredStatLabel {
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(255,255,255,.45);
+  white-space: nowrap;
+}
+
+.featuredCta {
+  margin-top: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--cyan);
+  letter-spacing: .2px;
+}
+.featured:hover .featuredCta { text-decoration: underline; }
+
 /* ─── Grid ───────────────────────────────────────────────────────────────────  */
 .gridWrap {
   flex: 1;
