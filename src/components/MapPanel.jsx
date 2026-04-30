@@ -253,14 +253,18 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
   useEffect(() => {
     const map = mapRef.current
     if (!map) return
+    const item = selectedItems.before
     const apply = () => {
       try { if (map.getLayer('before-cog-layer')) map.removeLayer('before-cog-layer') } catch {}
       try { if (map.getSource('cog-before'))      map.removeSource('cog-before')      } catch {}
-      if (!selectedItems.before?.cogUrl) return
+      if (!item?.cogUrl) return
       try {
         const anchor = map.getLayer('after-cog-layer') ? 'after-cog-layer'
                      : map.getLayer('fp-fill')         ? 'fp-fill' : undefined
-        map.addSource('cog-before', { type: 'raster', tiles: [cogTileUrl(selectedItems.before.cogUrl)], tileSize: 256 })
+        map.addSource('cog-before', {
+          type: 'raster', tiles: [cogTileUrl(item.cogUrl)], tileSize: 256,
+          ...(item.bbox?.length === 4 ? { bounds: item.bbox } : {}),
+        })
         map.addLayer({ id: 'before-cog-layer', type: 'raster', source: 'cog-before',
           layout: { visibility: showBeforeRef.current ? 'visible' : 'none' },
           paint: { 'raster-opacity': 0.9 } }, anchor)
@@ -274,13 +278,17 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
   useEffect(() => {
     const map = mapRef.current
     if (!map) return
+    const item = selectedItems.after
     const apply = () => {
       try { if (map.getLayer('after-cog-layer')) map.removeLayer('after-cog-layer') } catch {}
       try { if (map.getSource('cog-after'))      map.removeSource('cog-after')      } catch {}
-      if (!selectedItems.after?.cogUrl) return
+      if (!item?.cogUrl) return
       try {
         const anchor = map.getLayer('fp-fill') ? 'fp-fill' : undefined
-        map.addSource('cog-after', { type: 'raster', tiles: [cogTileUrl(selectedItems.after.cogUrl)], tileSize: 256 })
+        map.addSource('cog-after', {
+          type: 'raster', tiles: [cogTileUrl(item.cogUrl)], tileSize: 256,
+          ...(item.bbox?.length === 4 ? { bounds: item.bbox } : {}),
+        })
         map.addLayer({ id: 'after-cog-layer', type: 'raster', source: 'cog-after',
           layout: { visibility: showAfterRef.current ? 'visible' : 'none' },
           paint: { 'raster-opacity': 0.9 } }, anchor)
@@ -303,7 +311,7 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
     try { map.setLayoutProperty('after-cog-layer', 'visibility', showAfter ? 'visible' : 'none') } catch {}
   }, [showAfter])
 
-  // ── Preview: fitBounds then load COG ─────────────────────────────────────
+  // ── Preview: load COG tiles immediately, animate camera concurrently ────────
   useEffect(() => {
     const map = mapRef.current
     if (!map) return
@@ -314,23 +322,24 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
       try { if (map.getSource('cog-preview'))      map.removeSource('cog-preview')      } catch {}
       if (!item) return
 
-      if (item.bbox?.length === 4) {
-        const [minX, minY, maxX, maxY] = item.bbox
-        map.fitBounds([[minX, minY], [maxX, maxY]], { padding: 60, duration: 600, maxZoom: 16 })
-      }
-
-      if (!item.cogUrl) return
-      setTimeout(() => {
-        if (!mapRef.current) return
-        try { if (map.getLayer('preview-cog-layer')) map.removeLayer('preview-cog-layer') } catch {}
-        try { if (map.getSource('cog-preview'))      map.removeSource('cog-preview')      } catch {}
+      // Add tile source first — tiles start fetching in the background immediately
+      if (item.cogUrl) {
         try {
           const anchor = map.getLayer('fp-line') ? 'fp-line' : map.getLayer('fp-fill') ? 'fp-fill' : undefined
-          map.addSource('cog-preview', { type: 'raster', tiles: [cogTileUrl(item.cogUrl)], tileSize: 256 })
+          map.addSource('cog-preview', {
+            type: 'raster', tiles: [cogTileUrl(item.cogUrl)], tileSize: 256,
+            ...(item.bbox?.length === 4 ? { bounds: item.bbox } : {}),
+          })
           map.addLayer({ id: 'preview-cog-layer', type: 'raster', source: 'cog-preview',
             layout: { visibility: 'visible' }, paint: { 'raster-opacity': 0.95 } }, anchor)
         } catch (e) { console.warn('preview COG layer error:', e) }
-      }, 100)
+      }
+
+      // Animate camera to the item concurrently — tiles are already loading
+      if (item.bbox?.length === 4) {
+        const [minX, minY, maxX, maxY] = item.bbox
+        map.fitBounds([[minX, minY], [maxX, maxY]], { padding: 60, duration: 350, maxZoom: 16 })
+      }
 
       setShowPreview(true)
     }
