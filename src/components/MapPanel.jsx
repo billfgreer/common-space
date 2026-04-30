@@ -59,6 +59,15 @@ const UploadIcon = () => (
   </svg>
 )
 
+const DownloadIcon = () => (
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+    <polyline points="7 10 12 15 17 10"/>
+    <line x1="12" y1="3" x2="12" y2="15"/>
+  </svg>
+)
+
 // ─── MapPanel ─────────────────────────────────────────────────────────────────
 
 export default function MapPanel({ event, items, hoveredId, selectedItems, previewRequest, onItemClick, onSelectPair }) {
@@ -520,6 +529,17 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
     setUploadedLayers(prev => prev.map(l => l.id === layerId ? { ...l, visible: !l.visible } : l))
   }
 
+  function downloadLayer(layer) {
+    const json = JSON.stringify(layer.geojson, null, 2)
+    const blob = new Blob([json], { type: 'application/geo+json' })
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement('a')
+    a.href     = url
+    a.download = `${layer.name.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '_')}.geojson`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   function handleColorChange(layerId, newColor) {
     const map = mapRef.current
     if (map) {
@@ -689,7 +709,19 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
                     <span className={styles.osmIcon}>{osmLayer.icon}</span>
                     <span className={styles.eventDataName}>{osmLayer.name}</span>
                     {loaded ? (
-                      <span className={styles.eventDataLoaded}>✓</span>
+                      <>
+                        <span className={styles.eventDataLoaded}>✓</span>
+                        <button
+                          className={styles.layerDownload}
+                          title="Download as GeoJSON"
+                          onClick={() => {
+                            const layer = uploadedLayers.find(l => l.name === `OSM · ${osmLayer.name}`)
+                            if (layer) downloadLayer(layer)
+                          }}
+                        >
+                          <DownloadIcon />
+                        </button>
+                      </>
                     ) : (
                       <button
                         className={`${styles.eventDataLoad} ${err ? styles.eventDataLoadRetry : ''}`}
@@ -729,6 +761,7 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
                   <span className={styles.layerName}>{layer.name}</span>
                   <span className={styles.layerCount}>{layer.featureCount}</span>
                 </button>
+                <button className={styles.layerDownload} onClick={() => downloadLayer(layer)} title="Download as GeoJSON"><DownloadIcon /></button>
                 <button className={styles.layerRemove} onClick={() => removeLayer(layer.id)} title="Remove layer">✕</button>
               </div>
             ))}

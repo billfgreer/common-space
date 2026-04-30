@@ -214,6 +214,19 @@
   flex-shrink: 0;
 }
 
+.layerDownload {
+  width: 22px; height: 22px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,.88);
+  border: 1.5px solid var(--border);
+  border-radius: 5px;
+  color: var(--ink-soft);
+  cursor: pointer; flex-shrink: 0;
+  transition: background .12s, color .12s, border-color .12s;
+  backdrop-filter: blur(4px);
+}
+.layerDownload:hover { background: #eff6ff; color: #2563eb; border-color: #93c5fd; }
+
 .layerRemove {
   width: 22px; height: 22px;
   display: flex; align-items: center; justify-content: center;
