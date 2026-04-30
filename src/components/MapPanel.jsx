@@ -533,21 +533,26 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
   function handleExportMap() {
     const map = mapRef.current
     if (!map) return
-    // Trigger a clean render, then grab the canvas
-    map.once('render', () => {
+
+    const capture = () => {
       map.getCanvas().toBlob(blob => {
         if (!blob) return
-        const url = URL.createObjectURL(blob)
-        const a   = document.createElement('a')
-        a.href    = url
-        // Name includes event + timestamp so multiple exports don't clash
-        const eventSlug = (eventRef.current?.name ?? 'map').replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '_')
-        a.download = `${eventSlug}_${new Date().toISOString().slice(0,10)}.png`
+        const url  = URL.createObjectURL(blob)
+        const a    = document.createElement('a')
+        a.href     = url
+        const slug = (eventRef.current?.name ?? 'map').replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '_')
+        a.download = `${slug}_${new Date().toISOString().slice(0, 10)}.png`
         a.click()
         URL.revokeObjectURL(url)
       }, 'image/png')
-    })
-    map.triggerRepaint()
+    }
+
+    // Wait for all tiles to finish loading before capturing so we get full-res imagery
+    if (map.loaded()) {
+      capture()
+    } else {
+      map.once('idle', capture)
+    }
   }
 
   function downloadLayer(layer) {
@@ -831,7 +836,7 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
             title="Export current map view as PNG (includes satellite imagery + all overlay layers)"
           >
             <DownloadIcon />
-            Export
+            Export View
           </button>
         </div>
 
