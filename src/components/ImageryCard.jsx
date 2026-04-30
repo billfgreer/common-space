@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { cogThumbnailTileUrl } from '../lib/titiler.js'
 import { formatDate, formatPlatform } from '../lib/utils.js'
@@ -305,6 +305,7 @@ function MetaModal({ item, onClose }) {
 export default function ImageryCard({
   item,
   timing,        // 'before' | 'after'
+  hasEventDate,  // bool — whether the event has a date to base before/after on
   selected,      // false | 'before' | 'after'
   overlapPct,    // number 0-100 | null — overlap with the currently selected comparison item
   isBestPair,    // true | undefined
@@ -317,6 +318,21 @@ export default function ImageryCard({
   const initSource = item.thumbnailUrl ? 'thumbnail' : item.cogUrl ? 'cog' : 'none'
   const [thumbSource, setThumbSource] = useState(initSource)
   const [showMeta, setShowMeta]       = useState(false)
+  const [flash, setFlash]             = useState(false)
+  const cardRef    = useRef(null)
+  const prevPreview = useRef(false)
+
+  // When this card becomes the active preview (e.g. from a map footprint click),
+  // scroll it into view and fire a brief highlight flash to draw the user's eye.
+  useEffect(() => {
+    if (isPreview && !prevPreview.current) {
+      cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+      setFlash(true)
+      const t = setTimeout(() => setFlash(false), 700)
+      return () => clearTimeout(t)
+    }
+    prevPreview.current = isPreview
+  }, [isPreview])
 
   const thumbSrc = thumbSource === 'thumbnail' ? item.thumbnailUrl
                  : thumbSource === 'cog'       ? cogThumbnailTileUrl(item.cogUrl, item.bbox)
@@ -329,7 +345,8 @@ export default function ImageryCard({
 
   const cardClass = [
     styles.card,
-    isPreview ? styles.cardPreviewing : '',
+    isPreview  ? styles.cardPreviewing : '',
+    flash      ? styles.cardFlash      : '',
     selected === 'before' ? styles.selectedBefore : '',
     selected === 'after'  ? styles.selectedAfter  : '',
     isBestPair && !selected && !isPreview ? styles.bestPairCard : '',
@@ -349,6 +366,7 @@ export default function ImageryCard({
   return (
     <>
       <div
+        ref={cardRef}
         className={cardClass}
         onClick={() => onPreview?.(item)}
         onMouseEnter={() => onMouseEnter?.(item)}
@@ -362,9 +380,11 @@ export default function ImageryCard({
           ) : (
             <div className={styles.thumbPlaceholder} />
           )}
-          <span className={`${styles.badge} ${timing === 'before' ? styles.badgeBefore : styles.badgeAfter}`}>
-            {timing}
-          </span>
+          {hasEventDate && (
+            <span className={`${styles.badge} ${timing === 'before' ? styles.badgeBefore : styles.badgeAfter}`}>
+              {timing}
+            </span>
+          )}
           {isPreview && <span className={styles.onMapBadge}>◉ On map</span>}
         </div>
 
@@ -404,7 +424,7 @@ export default function ImageryCard({
             <button
               className={`${styles.actionView} ${isPreview ? styles.actionViewActive : ''}`}
               onClick={e => { e.stopPropagation(); onPreview?.(item) }}
-              title="Explore this image on the map"
+              title="Pan and zoom map to this image"
             >
               <MapIcon />
               {isPreview ? 'Viewing' : 'View'}

@@ -125,6 +125,9 @@ export default function ResultsPanel({
     !showPairSection || (i.id !== bestPair?.before?.id && i.id !== bestPair?.after?.id)
   )
 
+  // Whether this event has a meaningful event date to base before/after on
+  const hasEventDate = !!(event?.eventDate)
+
   return (
     <div className={styles.panel}>
 
@@ -142,7 +145,7 @@ export default function ResultsPanel({
           </select>
         </div>
         <div className={styles.filters}>
-          {['all', 'before', 'after'].map(f => (
+          {(hasEventDate ? ['all', 'before', 'after'] : ['all']).map(f => (
             <button
               key={f}
               className={[styles.chip, filter === f ? styles[`chip_${f}`] : ''].join(' ')}
@@ -225,6 +228,7 @@ export default function ResultsPanel({
                   key={`bp-b-${bestPair.before.id}`}
                   item={bestPair.before}
                   timing="before"
+                  hasEventDate={hasEventDate}
                   selected={isSelected(bestPair.before)}
                   overlapPct={overlapWithSelected(bestPair.before)}
                   isBestPair={true}
@@ -238,6 +242,7 @@ export default function ResultsPanel({
                   key={`bp-a-${bestPair.after.id}`}
                   item={bestPair.after}
                   timing="after"
+                  hasEventDate={hasEventDate}
                   selected={isSelected(bestPair.after)}
                   overlapPct={overlapWithSelected(bestPair.after)}
                   isBestPair={true}
@@ -264,9 +269,11 @@ export default function ResultsPanel({
                 key={item.id}
                 item={item}
                 timing={item.timing}
+                hasEventDate={hasEventDate}
                 selected={isSelected(item)}
                 overlapPct={overlapWithSelected(item)}
                 isPreview={item.id === previewItemId}
+                onPreview={onPreview}
                 onSelect={onSelect}
                 onMouseEnter={onHoverEnter}
                 onMouseLeave={onHoverLeave}
