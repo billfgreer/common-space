@@ -7,6 +7,7 @@ import { fetchHDXResource, fetchUSGSShakeMap, formatToExt } from '../lib/hdx.js'
 import { fetchOSMLayer, OSM_LAYERS } from '../lib/osm.js'
 import { MAPLIBRE_STYLE } from '../lib/constants.js'
 import { formatPlatform, shortDate } from '../lib/utils.js'
+import { exportWithLayers, getCogBounds } from '../lib/export.js'
 import HDXPanel from './HDXPanel.jsx'
 import styles from './MapPanel.module.css'
 
@@ -110,6 +111,10 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
   // OSM layer state
   const [osmLoading, setOsmLoading] = useState({}) // layerId -> true
   const [osmErrors,  setOsmErrors]  = useState({}) // layerId -> string
+
+  // Export state
+  const [exporting, setExporting]   = useState(false)
+  const [exportErr, setExportErr]   = useState(null)
 
   useEffect(() => { itemsRef.current        = items        }, [items])
   useEffect(() => { eventRef.current        = event        }, [event])
@@ -530,28 +535,50 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
     setUploadedLayers(prev => prev.map(l => l.id === layerId ? { ...l, visible: !l.visible } : l))
   }
 
-  function handleExportMap() {
-    const map = mapRef.current
-    if (!map) return
+  async function handleExportMap() {
+    if (exporting) return
+    setExportErr(null)
 
-    const capture = () => {
-      map.getCanvas().toBlob(blob => {
+    // Determine which COG is currently being viewed
+    const item = previewRequest?.item
+      ?? selectedItems?.after
+      ?? selectedItems?.before
+      ?? null
+
+    const slug     = (eventRef.current?.name ?? 'imagery').replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '_')
+    const datePart = new Date().toISOString().slice(0, 10)
+    const filename = `${slug}_${datePart}.png`
+
+    if (!item?.cogUrl) {
+      // No COG loaded — fall back to canvas screenshot of whatever is on screen
+      const map = mapRef.current
+      if (!map) return
+      const capture = () => map.getCanvas().toBlob(blob => {
         if (!blob) return
-        const url  = URL.createObjectURL(blob)
-        const a    = document.createElement('a')
-        a.href     = url
-        const slug = (eventRef.current?.name ?? 'map').replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '_')
-        a.download = `${slug}_${new Date().toISOString().slice(0, 10)}.png`
-        a.click()
+        const url = URL.createObjectURL(blob)
+        Object.assign(document.createElement('a'), { href: url, download: filename }).click()
         URL.revokeObjectURL(url)
       }, 'image/png')
+      map.loaded() ? capture() : map.once('idle', capture)
+      return
     }
 
-    // Wait for all tiles to finish loading before capturing so we get full-res imagery
-    if (map.loaded()) {
-      capture()
-    } else {
-      map.once('idle', capture)
+    setExporting(true)
+    try {
+      // Resolve the COG's geographic extent in WGS84
+      const bbox = await getCogBounds(item.cogUrl, item.bbox)
+
+      await exportWithLayers({
+        cogUrl:   item.cogUrl,
+        bbox,
+        layers:   uploadedLayersRef.current,
+        filename,
+      })
+    } catch (err) {
+      console.error('Export failed:', err)
+      setExportErr('Export failed — try again')
+    } finally {
+      setExporting(false)
     }
   }
 
@@ -831,14 +858,22 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
           </button>
 
           <button
-            className={styles.uploadBtn}
+            className={`${styles.uploadBtn} ${exporting ? styles.uploadBtnBusy : ''}`}
             onClick={handleExportMap}
-            title="Export current map view as PNG (includes satellite imagery + all overlay layers)"
+            disabled={exporting}
+            title="Download full-resolution satellite image with vector layers composited on top"
           >
-            <DownloadIcon />
-            Export View
+            {exporting ? <span className={styles.spinnerXs} /> : <DownloadIcon />}
+            {exporting ? 'Exporting…' : 'Export View'}
           </button>
         </div>
+
+        {exportErr && (
+          <div className={styles.uploadError}>
+            <span>{exportErr}</span>
+            <button onClick={() => setExportErr(null)}>✕</button>
+          </div>
+        )}
 
         <input
           ref={fileInputRef}
