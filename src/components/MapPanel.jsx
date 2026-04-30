@@ -13,6 +13,13 @@ import styles from './MapPanel.module.css'
 
 const SOURCE_ID = 'footprints'
 
+// Returns cogTileUrl options appropriate for the item's sensor type.
+// SAR imagery (Umbra, etc.) is single-band floating-point — needs bidx=1 + grayscale colormap.
+function cogOpts(item) {
+  if (item?.isSAR) return { bidx: [1], rescale: '0,1500', colormapName: 'greys_r' }
+  return {}
+}
+
 // Colour palette for successive uploaded layers
 const UPLOAD_COLORS = [
   '#e74c3c', '#3498db', '#2ecc71', '#f39c12',
@@ -262,7 +269,7 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
         const anchor = map.getLayer('after-cog-layer') ? 'after-cog-layer'
                      : map.getLayer('fp-fill')         ? 'fp-fill' : undefined
         map.addSource('cog-before', {
-          type: 'raster', tiles: [cogTileUrl(item.cogUrl)], tileSize: 256,
+          type: 'raster', tiles: [cogTileUrl(item.cogUrl, cogOpts(item))], tileSize: 256,
           ...(item.bbox?.length === 4 ? { bounds: item.bbox } : {}),
         })
         map.addLayer({ id: 'before-cog-layer', type: 'raster', source: 'cog-before',
@@ -286,7 +293,7 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
       try {
         const anchor = map.getLayer('fp-fill') ? 'fp-fill' : undefined
         map.addSource('cog-after', {
-          type: 'raster', tiles: [cogTileUrl(item.cogUrl)], tileSize: 256,
+          type: 'raster', tiles: [cogTileUrl(item.cogUrl, cogOpts(item))], tileSize: 256,
           ...(item.bbox?.length === 4 ? { bounds: item.bbox } : {}),
         })
         map.addLayer({ id: 'after-cog-layer', type: 'raster', source: 'cog-after',
@@ -327,7 +334,7 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
         try {
           const anchor = map.getLayer('fp-line') ? 'fp-line' : map.getLayer('fp-fill') ? 'fp-fill' : undefined
           map.addSource('cog-preview', {
-            type: 'raster', tiles: [cogTileUrl(item.cogUrl)], tileSize: 256,
+            type: 'raster', tiles: [cogTileUrl(item.cogUrl, cogOpts(item))], tileSize: 256,
             ...(item.bbox?.length === 4 ? { bounds: item.bbox } : {}),
           })
           map.addLayer({ id: 'preview-cog-layer', type: 'raster', source: 'cog-preview',

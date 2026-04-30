@@ -34,11 +34,29 @@ function normaliseItem(item, itemUrl) {
     return base ? resolveAssetHref(itemUrl, href) : toHttpsUrl(href)
   }
 
-  const cogHref =
+  // Try well-known asset keys first (Maxar, Planet, Satellogic)
+  let cogHref =
     item.assets?.visual?.href ||
     item.assets?.pan_analytic?.href ||
     item.assets?.ms?.href ||
     null
+
+  // Fallback: search all assets by MIME type for any cloud-optimized GeoTIFF.
+  // Prefer "overview" role (Umbra's display-ready SAR GeoTIFF), then any COG.
+  if (!cogHref && item.assets) {
+    const assetList = Object.values(item.assets)
+    const isCog = a => typeof a.type === 'string' && a.type.includes('cloud-optimized')
+    const overviewCog = assetList.find(a => isCog(a) && Array.isArray(a.roles) && a.roles.includes('overview'))
+    const anyCog      = assetList.find(a => isCog(a))
+    cogHref = (overviewCog || anyCog)?.href ?? null
+  }
+
+  // Detect SAR instruments (Umbra, Capella, ICEYE, etc.) — drives single-band rendering
+  const isSAR = !!(
+    item.properties?.['sar:instrument_mode'] ||
+    item.properties?.['sar:frequency_band'] ||
+    item.properties?.['sar:polarizations']
+  )
 
   return {
     id: item.id,
@@ -49,6 +67,7 @@ function normaliseItem(item, itemUrl) {
     bbox: item.bbox || null,
     geometry: item.geometry || null,
     cogUrl: resolve(cogHref),
+    isSAR,
     // Check preview (Satellogic) as an additional thumbnail fallback
     thumbnailUrl: resolve(
       item.assets?.thumbnail?.href ||
@@ -205,8 +224,8 @@ async function streamMaxarStyle(rootNode, catalogUrl, maxItems, eventDate, onIte
 }
 
 // Generic single-pass walk for simpler catalog structures.
-// Uses sequential child traversal to avoid request explosions on deep catalogs
-// (e.g. Satellogic: month → 31 days → N items/day).
+// Uses parallel child traversal so deep catalogs (e.g. Satellogic: month → 31 days → N items/day)
+// resolve in seconds rather than minutes.
 async function walkSimple(url, maxItems, onItem, signal) {
   let found = 0
 
@@ -216,7 +235,8 @@ async function walkSimple(url, maxItems, onItem, signal) {
     try { node = await fetchJSON(nodeUrl) } catch { return }
 
     if (node.type === 'Feature') {
-      found++; onItem?.(normaliseItem(node, nodeUrl)); return
+      if (found < maxItems) { found++; onItem?.(normaliseItem(node, nodeUrl)) }
+      return
     }
     if (node.type === 'FeatureCollection') {
       for (const f of node.features) {
@@ -232,25 +252,25 @@ async function walkSimple(url, maxItems, onItem, signal) {
     const childLinks = links.filter(l => l.rel === 'child')
 
     if (itemLinks.length) {
-      // Take up to 20 items per catalog node for good coverage at each location
+      // Take up to 20 items per catalog node; fetch all in parallel (they are leaves)
       const take = Math.min(20, maxItems - found, itemLinks.length)
       const sampled = evenSample(itemLinks, take)
-      for (const l of sampled) {
+      await Promise.allSettled(sampled.map(async l => {
         if (found >= maxItems || signal?.aborted) return
         const h = resolveHref(nodeBase, l.href)
         if (h) await walk(h, depth + 1)
-      }
+      }))
       return
     }
     if (childLinks.length) {
-      // Sample children evenly so we get geographic/temporal spread
+      // Sample children evenly for geographic/temporal spread; traverse all in parallel
       const limit = depth === 0 ? 60 : depth === 1 ? 25 : 12
       const sampled = evenSample(childLinks, Math.min(limit, childLinks.length))
-      for (const l of sampled) {
+      await Promise.allSettled(sampled.map(async l => {
         if (found >= maxItems || signal?.aborted) return
         const h = resolveHref(nodeBase, l.href)
         if (h) await walk(h, depth + 1)
-      }
+      }))
     }
   }
 

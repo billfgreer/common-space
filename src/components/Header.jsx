@@ -2,11 +2,7 @@ import styles from './Header.module.css'
 
 const Logo = () => (
   <div className={styles.logo}>
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-      <circle cx="10" cy="10" r="8" stroke="#0AAFB8" strokeWidth="1.5"/>
-      <ellipse cx="10" cy="10" rx="4.5" ry="8" stroke="#0AAFB8" strokeWidth="1.5"/>
-      <line x1="2" y1="10" x2="18" y2="10" stroke="#0AAFB8" strokeWidth="1.5"/>
-    </svg>
+    <span className={styles.logoMark} aria-hidden="true" />
     Disaster Commons
   </div>
 )

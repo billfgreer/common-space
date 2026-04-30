@@ -2,7 +2,7 @@
 // catalogUrl points to the event's collection.json (top-level entry point).
 // eventDate is the disaster date — items before it are BEFORE, after are AFTER.
 
-import { MAXAR_BASE as BASE, SATELLOGIC_BASE as SATELLOGIC } from './constants.js'
+import { MAXAR_BASE as BASE, SATELLOGIC_BASE as SATELLOGIC, PLANET_BASE as PLANET, UMBRA_BASE as UMBRA } from './constants.js'
 
 export const EVENTS = [
 
@@ -62,6 +62,23 @@ export const EVENTS = [
         format: 'GeoJSON', type: 'admin', source: 'GeoBoundaries',
       },
     ],
+  },
+
+  {
+    id: 'hurricane-harvey-2017',
+    name: 'Hurricane Harvey 2017',
+    location: 'Houston, Texas',
+    eventDate: '2017-08-25',
+    type: 'Hurricane',
+    emoji: '🌀',
+    center: [-95.4, 29.7],
+    zoom: 9,
+    bbox: [-96.5, 29.0, -94.5, 30.5],
+    catalogUrl: `${PLANET}/disasters/hurricane-harvey/catalog.json`,
+    imageCount: 20,
+    source: 'planet',
+    thumbGradient: 'linear-gradient(120deg,#2D5A8E,#4A8BAD,#6BAD8E,#8BA06B)',
+    impact: { deaths: 107, displaced: 30000, homesDestroyed: 135000, costUSD: 125000 },
   },
 
   // ── 2021 ────────────────────────────────────────────────────────────────────
@@ -410,6 +427,21 @@ export const EVENTS = [
     imageCount: 15,
     thumbGradient: 'linear-gradient(140deg,#4A6B3A,#6A8B5A,#5A7B4A,#3A5B2A)',
     impact: { deaths: 32, displaced: 500, homesDestroyed: 50, costUSD: 10 },
+  },
+  {
+    id: 'hurricane-idalia-2023',
+    name: 'Hurricane Idalia 2023',
+    location: 'Big Bend Coast, Florida',
+    eventDate: '2023-08-30',
+    type: 'Hurricane',
+    emoji: '🌀',
+    center: [-83.2, 29.5],
+    zoom: 9,
+    bbox: [-84.0, 28.7, -82.4, 30.3],
+    catalogUrl: `${BASE}/Hurricane-Idalia-Florida-Aug23/collection.json`,
+    imageCount: 15,
+    thumbGradient: 'linear-gradient(120deg,#2D5A8E,#4A8BAD,#6BAD8E,#8BA06B)',
+    impact: { deaths: 4, displaced: 50000, homesDestroyed: 1000, costUSD: 3500 },
   },
   {
     id: 'mcdougall-creek-wildfire-2023',
@@ -942,6 +974,58 @@ export const EVENTS = [
     imageCount: 20,
     thumbGradient: 'linear-gradient(150deg,#4A6A9B,#2E5A8A,#8B7A4A,#6A9AAD)',
     impact: { deaths: 0, displaced: 0, homesDestroyed: 0, costUSD: 0 },
+  },
+
+  // ── Umbra Open SAR Data (sub-meter SAR, CC-BY-4.0, AWS Open Data) ─────────
+  {
+    id: 'umbra-sar-2024',
+    name: 'Umbra SAR Archive 2024',
+    location: 'Global Monitoring Sites',
+    eventDate: null,
+    type: 'Archive',
+    emoji: '📡',
+    center: [0, 20],
+    zoom: 2,
+    bbox: null,
+    catalogUrl: `${UMBRA}/2024/catalog.json`,
+    imageCount: 60,
+    source: 'umbra',
+    thumbGradient: 'linear-gradient(145deg,#1a1a2e,#16213e,#0f3460,#533483)',
+    impact: null,
+  },
+  {
+    id: 'umbra-sar-2025',
+    name: 'Umbra SAR Archive 2025',
+    location: 'Global Monitoring Sites',
+    eventDate: null,
+    type: 'Archive',
+    emoji: '📡',
+    center: [0, 20],
+    zoom: 2,
+    bbox: null,
+    catalogUrl: `${UMBRA}/2025/catalog.json`,
+    imageCount: 60,
+    source: 'umbra',
+    thumbGradient: 'linear-gradient(145deg,#0f3460,#533483,#1a1a2e,#16213e)',
+    impact: null,
+  },
+
+  // ── Planet Open SkySat (high-res optical, CC-BY-4.0) ──────────────────────
+  {
+    id: 'planet-skysat-sample',
+    name: 'Planet SkySat Open Sample',
+    location: 'Global (Arizona, San Francisco, Peru, Cambodia, Africa)',
+    eventDate: null,
+    type: 'Archive',
+    emoji: '🛰',
+    center: [-115.7, 35.6],
+    zoom: 6,
+    bbox: null,
+    catalogUrl: 'https://www.planet.com/data/stac/open-skysat-data/collection.json',
+    imageCount: 20,
+    source: 'planet',
+    thumbGradient: 'linear-gradient(145deg,#15803d,#166534,#14532d,#065f46)',
+    impact: null,
   },
 
   // ── Satellogic EarthView open archive (1m GSD, CC-BY-4.0) ─────────────────

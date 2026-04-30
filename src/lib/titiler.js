@@ -14,10 +14,11 @@ export function toHttpsUrl(url) {
 }
 
 // MapLibre raster tile URL template for a COG
-export function cogTileUrl(cogUrl, { rescale = '0,255', bidx = [1, 2, 3] } = {}) {
+export function cogTileUrl(cogUrl, { rescale = '0,255', bidx = [1, 2, 3], colormapName } = {}) {
   const httpsUrl = toHttpsUrl(cogUrl)
   const params = new URLSearchParams({ url: httpsUrl, rescale })
   bidx.forEach(b => params.append('bidx', String(b)))
+  if (colormapName) params.set('colormap_name', colormapName)
   return `${TITILER_BASE}/cog/tiles/WebMercatorQuad/{z}/{x}/{y}.png?${params}`
 }
 

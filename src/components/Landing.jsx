@@ -29,6 +29,38 @@ const CAT_FILTERS = [
   { id: 'Archive',    label: 'Archive',     emoji: '🛰' },
 ]
 
+// ─── Provider metadata ────────────────────────────────────────────────────────
+
+export const PROVIDER_META = {
+  maxar:      { label: 'Maxar',       color: '#1a56db', bg: 'rgba(26,86,219,.1)',  border: 'rgba(26,86,219,.28)' },
+  planet:     { label: 'Planet',      color: '#15803d', bg: 'rgba(21,128,61,.1)',  border: 'rgba(21,128,61,.28)' },
+  satellogic: { label: 'Satellogic',  color: '#7c3aed', bg: 'rgba(124,58,237,.1)', border: 'rgba(124,58,237,.28)' },
+  umbra:      { label: 'Umbra SAR',   color: '#b45309', bg: 'rgba(180,83,9,.1)',   border: 'rgba(180,83,9,.28)' },
+}
+
+const PROVIDER_FILTERS = [
+  { id: 'all',        label: 'All Providers', dot: null },
+  { id: 'maxar',      label: 'Maxar',         dot: '#1a56db' },
+  { id: 'planet',     label: 'Planet',        dot: '#15803d' },
+  { id: 'satellogic', label: 'Satellogic',    dot: '#7c3aed' },
+  { id: 'umbra',      label: 'Umbra SAR',     dot: '#b45309' },
+]
+
+// Detect provider from source field or catalog URL
+function getProvider(event) {
+  if (event.source) return event.source
+  const url = event.catalogUrl || ''
+  if (url.includes('maxar-opendata')) return 'maxar'
+  if (url.includes('planet.com'))     return 'planet'
+  if (url.includes('satellogic'))     return 'satellogic'
+  if (url.includes('umbra'))          return 'umbra'
+  return 'maxar'
+}
+
+// Archive sources (non-disaster events pinned to bottom of list)
+// Note: planet disaster events (Harvey) are NOT archives — only skysat
+const ARCHIVE_SOURCES = new Set(['satellogic', 'umbra'])
+
 const SORT_OPTIONS = [
   { id: 'impact', label: 'Human Impact' },
   { id: 'recent', label: 'Most Recent'  },
@@ -57,7 +89,9 @@ const SearchIcon = () => (
 
 // ─── Event card ───────────────────────────────────────────────────────────────
 function EventCard({ event, onClick }) {
-  const isArchive = event.source === 'satellogic'
+  const provider  = getProvider(event)
+  const provMeta  = PROVIDER_META[provider]
+  const isArchive = ARCHIVE_SOURCES.has(event.source) || event.type === 'Archive'
   const stat      = topStat(event.impact)
   const hdxTypes  = useMemo(() => {
     const seen = new Set()
@@ -115,6 +149,12 @@ function EventCard({ event, onClick }) {
           <span className={styles.dataPill} style={{ background: 'rgba(10,175,184,.1)', color: '#0AAFB8', border: '1px solid rgba(10,175,184,.28)' }}>
             🛰 {event.imageCount}+
           </span>
+          {provMeta && (
+            <span className={styles.dataPill}
+              style={{ background: provMeta.bg, color: provMeta.color, border: `1px solid ${provMeta.border}` }}>
+              {provMeta.label}
+            </span>
+          )}
           {hdxTypes.map(type => {
             const m = DATA_TYPE_COLORS[type]
             return m ? (
@@ -132,14 +172,16 @@ function EventCard({ event, onClick }) {
 
 // ─── Landing ──────────────────────────────────────────────────────────────────
 export default function Landing({ onSelectEvent }) {
-  const [query,  setQuery]  = useState('')
-  const [filter, setFilter] = useState('all')
-  const [sort,   setSort]   = useState('impact')
+  const [query,    setQuery]    = useState('')
+  const [filter,   setFilter]   = useState('all')
+  const [provider, setProvider] = useState('all')
+  const [sort,     setSort]     = useState('impact')
 
   const baseEvents = useMemo(() => {
-    const disasters = EVENTS.filter(e => e.source !== 'satellogic')
-    const archives  = EVENTS.filter(e => e.source === 'satellogic')
-    // Sort disasters
+    const isArchive = e => ARCHIVE_SOURCES.has(e.source) || e.type === 'Archive'
+    const disasters = EVENTS.filter(e => !isArchive(e))
+    const archives  = EVENTS.filter(e => isArchive(e))
+    // Sort disasters only — archives pin to bottom
     const sorted = [...disasters].sort((a, b) => {
       if (sort === 'impact') return impactScore(b) - impactScore(a)
       if (sort === 'cost')   return (b.impact?.costUSD ?? 0) - (a.impact?.costUSD ?? 0)
@@ -149,14 +191,15 @@ export default function Landing({ onSelectEvent }) {
   }, [sort])
 
   const visible = useMemo(() => baseEvents.filter(e => {
-    const matchCat = filter === 'all' || getCategory(e) === filter
+    const matchCat      = filter === 'all' || getCategory(e) === filter
+    const matchProvider = provider === 'all' || getProvider(e) === provider
     const q = query.toLowerCase()
     const matchQ = !q || e.name.toLowerCase().includes(q) || e.location.toLowerCase().includes(q)
-    return matchCat && matchQ
-  }), [baseEvents, filter, query])
+    return matchCat && matchProvider && matchQ
+  }), [baseEvents, filter, provider, query])
 
   // Summary counts for the toolbar
-  const totalEvents    = EVENTS.filter(e => e.source !== 'satellogic').length
+  const totalEvents    = EVENTS.filter(e => !(ARCHIVE_SOURCES.has(e.source) || e.type === 'Archive')).length
   const totalDeaths    = useMemo(() =>
     EVENTS.reduce((s, e) => s + (e.impact?.deaths ?? 0), 0), [])
   const totalDisplaced = useMemo(() =>
@@ -219,6 +262,32 @@ export default function Landing({ onSelectEvent }) {
               {s.label}
             </button>
           ))}
+        </div>
+      </div>
+
+      {/* ── Provider filter buttons ── */}
+      <div className={styles.providerRow}>
+        <span className={styles.providerLabel}>Data source</span>
+        <div className={styles.providerBar}>
+          {PROVIDER_FILTERS.map(p => {
+            const isActive = provider === p.id
+            return (
+              <button
+                key={p.id}
+                className={`${styles.providerBtn} ${isActive ? styles.providerBtnActive : ''}`}
+                style={isActive && p.dot ? { borderColor: p.dot, color: p.dot } : {}}
+                onClick={() => setProvider(p.id)}
+              >
+                {p.dot && (
+                  <span
+                    className={styles.providerDot}
+                    style={{ background: p.dot, opacity: isActive ? 1 : 0.45 }}
+                  />
+                )}
+                {p.label}
+              </button>
+            )
+          })}
         </div>
       </div>
 
