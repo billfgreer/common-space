@@ -129,6 +129,7 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
       style: MAPLIBRE_STYLE,
       center: event?.center || [0, 20],
       zoom:   event?.zoom   || 3,
+      preserveDrawingBuffer: true, // required for canvas → PNG export
     })
     map.addControl(new maplibregl.NavigationControl(), 'top-right')
     mapRef.current = map
@@ -529,6 +530,26 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
     setUploadedLayers(prev => prev.map(l => l.id === layerId ? { ...l, visible: !l.visible } : l))
   }
 
+  function handleExportMap() {
+    const map = mapRef.current
+    if (!map) return
+    // Trigger a clean render, then grab the canvas
+    map.once('render', () => {
+      map.getCanvas().toBlob(blob => {
+        if (!blob) return
+        const url = URL.createObjectURL(blob)
+        const a   = document.createElement('a')
+        a.href    = url
+        // Name includes event + timestamp so multiple exports don't clash
+        const eventSlug = (eventRef.current?.name ?? 'map').replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '_')
+        a.download = `${eventSlug}_${new Date().toISOString().slice(0,10)}.png`
+        a.click()
+        URL.revokeObjectURL(url)
+      }, 'image/png')
+    })
+    map.triggerRepaint()
+  }
+
   function downloadLayer(layer) {
     const json = JSON.stringify(layer.geojson, null, 2)
     const blob = new Blob([json], { type: 'application/geo+json' })
@@ -802,6 +823,15 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
               <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
             HDX
+          </button>
+
+          <button
+            className={styles.uploadBtn}
+            onClick={handleExportMap}
+            title="Export current map view as PNG (includes satellite imagery + all overlay layers)"
+          >
+            <DownloadIcon />
+            Export
           </button>
         </div>
 
