@@ -5,6 +5,7 @@ export const MAPLIBRE_STYLE = 'https://basemaps.cartocdn.com/gl/positron-gl-styl
 export const TITILER_BASE   = 'https://titiler.xyz'
 export const HDX_API_BASE   = 'https://data.humdata.org/api/3/action'
 export const CIVAPI_BASE    = 'https://api.civapi.com'
+export const GDACS_RSS      = 'https://www.gdacs.org/xml/rss.xml'
 
 // Maxar Open Data S3 base
 export const MAXAR_BASE      = 'https://maxar-opendata.s3.amazonaws.com/events'

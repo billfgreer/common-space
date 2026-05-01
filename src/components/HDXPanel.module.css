@@ -40,6 +40,58 @@
 }
 .closeBtn:hover { background: var(--bg); color: var(--ink); }
 
+/* ─── Source tabs (HDX / EM-DAT) ─────────────────────────────────────────── */
+
+.sourceRow {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  background: var(--white);
+}
+
+.sourceTab {
+  flex: 1;
+  padding: 8px 12px;
+  font-size: 11px; font-weight: 700;
+  letter-spacing: .3px; text-transform: uppercase;
+  color: var(--ink-soft);
+  background: transparent; border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color .12s, border-color .12s;
+  white-space: nowrap;
+}
+.sourceTab:hover { color: var(--ink); }
+.sourceTabActive {
+  color: var(--cyan);
+  border-bottom-color: var(--cyan);
+}
+
+/* ─── Download chip (for tabular resources like CSV) ─────────────────────── */
+
+.downloadChip {
+  align-self: flex-start;
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; font-weight: 600;
+  padding: 4px 10px; border-radius: 6px;
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  color: var(--ink-mid);
+  text-decoration: none;
+  transition: border-color .12s, color .12s;
+  white-space: nowrap;
+}
+.downloadChip:hover { border-color: var(--ink-mid); color: var(--ink); }
+
+/* EM-DAT note */
+.emdatNote {
+  font-size: 11px; color: var(--ink-soft);
+  line-height: 1.5;
+  padding: 10px 2px 4px;
+}
+.emdatNote a { color: var(--cyan); text-decoration: none; }
+.emdatNote a:hover { text-decoration: underline; }
+
 /* ─── Search ──────────────────────────────────────────────────────────────── */
 
 .searchRow {

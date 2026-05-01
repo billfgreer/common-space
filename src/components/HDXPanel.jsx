@@ -4,7 +4,8 @@ import { searchHDX, fetchHDXResource, formatToExt } from '../lib/hdx.js'
 import { parseVectorFiles } from '../lib/vectorParse.js'
 import styles from './HDXPanel.module.css'
 
-const HDX_LOGO_URL = 'https://data.humdata.org/images/icons/hdx-logo-dark-smaller.png'
+const HDX_LOGO_URL   = 'https://data.humdata.org/images/icons/hdx-logo-dark-smaller.png'
+const EMDAT_ORG_SLUG = 'cred-crunch'   // CRED publishes EM-DAT datasets to HDX under this org
 
 function formatSize(bytes) {
   if (!bytes) return ''
@@ -28,6 +29,7 @@ function FormatBadge({ fmt }) {
 }
 
 export default function HDXPanel({ anchorRect, bounds, eventName, onAdd, onClose }) {
+  const [source, setSource]             = useState('hdx')  // 'hdx' | 'emdat'
   const [query, setQuery]               = useState(eventName || '')
   const [results, setResults]           = useState(null)
   const [loading, setLoading]           = useState(false)
@@ -38,11 +40,16 @@ export default function HDXPanel({ anchorRect, bounds, eventName, onAdd, onClose
 
   // Auto-search on mount using current map bounds + event name
   useEffect(() => {
-    runSearch(eventName || '')
+    runSearch(eventName || '', 'hdx')
     inputRef.current?.focus()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function runSearch(q) {
+  // Re-search when source tab changes
+  useEffect(() => {
+    runSearch(query, source)
+  }, [source]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function runSearch(q, src = source) {
     setLoading(true)
     setError(null)
     setResults(null)
@@ -50,7 +57,15 @@ export default function HDXPanel({ anchorRect, bounds, eventName, onAdd, onClose
       const bbox = bounds
         ? [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()]
         : null
-      const res = await searchHDX({ bbox, query: q, rows: 30 })
+
+      const isEmdat = src === 'emdat'
+      const res = await searchHDX({
+        bbox:         isEmdat ? null : bbox,  // EM-DAT datasets are global — skip bbox filter
+        query:        q,
+        rows:         30,
+        organization: isEmdat ? EMDAT_ORG_SLUG : undefined,
+        allFormats:   isEmdat,                // show CSV/XLSX for EM-DAT
+      })
       setResults(res)
     } catch (e) {
       setError(e.message)
@@ -96,6 +111,22 @@ export default function HDXPanel({ anchorRect, bounds, eventName, onAdd, onClose
         <button className={styles.closeBtn} onClick={onClose}>✕</button>
       </div>
 
+      {/* Source tabs */}
+      <div className={styles.sourceRow}>
+        <button
+          className={[styles.sourceTab, source === 'hdx' ? styles.sourceTabActive : ''].filter(Boolean).join(' ')}
+          onClick={() => setSource('hdx')}
+        >
+          HDX
+        </button>
+        <button
+          className={[styles.sourceTab, source === 'emdat' ? styles.sourceTabActive : ''].filter(Boolean).join(' ')}
+          onClick={() => setSource('emdat')}
+        >
+          EM-DAT
+        </button>
+      </div>
+
       {/* Search */}
       <div className={styles.searchRow}>
         <input
@@ -104,7 +135,7 @@ export default function HDXPanel({ anchorRect, bounds, eventName, onAdd, onClose
           value={query}
           onChange={e => setQuery(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && runSearch(query)}
-          placeholder="Keyword filter (or leave blank for extent only)…"
+          placeholder={source === 'emdat' ? 'Filter EM-DAT datasets…' : 'Keyword filter (or leave blank for extent only)…'}
         />
         <button
           className={styles.searchBtn}
@@ -117,7 +148,9 @@ export default function HDXPanel({ anchorRect, bounds, eventName, onAdd, onClose
 
       {/* Scope note */}
       <div className={styles.scopeNote}>
-        {bounds
+        {source === 'emdat'
+          ? '◉ EM-DAT datasets from CRED via HDX'
+          : bounds
           ? '◉ Filtered to current map view'
           : '◎ No map bounds — searching globally'}
       </div>
@@ -125,10 +158,17 @@ export default function HDXPanel({ anchorRect, bounds, eventName, onAdd, onClose
       {/* Body */}
       <div className={styles.body}>
 
+        {source === 'emdat' && !loading && !error && (
+          <p className={styles.emdatNote}>
+            Most EM-DAT datasets are tabular (CSV/XLSX). For the full interactive database visit{' '}
+            <a href="https://emdat.be" target="_blank" rel="noreferrer">emdat.be</a>.
+          </p>
+        )}
+
         {loading && (
           <div className={styles.loadingState}>
             <div className={styles.spinner} />
-            Searching HDX…
+            {source === 'emdat' ? 'Searching EM-DAT…' : 'Searching HDX…'}
           </div>
         )}
 
@@ -178,16 +218,28 @@ export default function HDXPanel({ anchorRect, bounds, eventName, onAdd, onClose
                       {resourceErrors[r.id] && (
                         <div className={styles.resourceError}>{resourceErrors[r.id]}</div>
                       )}
-                      <button
-                        className={styles.addBtn}
-                        onClick={() => handleLoad(r, ds.title)}
-                        disabled={!!loadingId}
-                        title="Fetch and add to map"
-                      >
-                        {loadingId === r.id ? (
-                          <><span className={styles.spinnerSm} /> Loading…</>
-                        ) : '+ Add to Map'}
-                      </button>
+                      {r.canAdd !== false ? (
+                        <button
+                          className={styles.addBtn}
+                          onClick={() => handleLoad(r, ds.title)}
+                          disabled={!!loadingId}
+                          title="Fetch and add to map"
+                        >
+                          {loadingId === r.id ? (
+                            <><span className={styles.spinnerSm} /> Loading…</>
+                          ) : '+ Add to Map'}
+                        </button>
+                      ) : (
+                        <a
+                          href={r.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className={styles.downloadChip}
+                          title="Download dataset"
+                        >
+                          ↓ Download
+                        </a>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -199,11 +251,19 @@ export default function HDXPanel({ anchorRect, bounds, eventName, onAdd, onClose
 
       {/* Footer */}
       <div className={styles.footer}>
-        Data from{' '}
-        <a href="https://data.humdata.org" target="_blank" rel="noreferrer">
-          data.humdata.org
-        </a>
-        {' '}· CC licenses may apply
+        {source === 'emdat' ? (
+          <>
+            Data from{' '}
+            <a href="https://emdat.be" target="_blank" rel="noreferrer">CRED/EM-DAT</a>
+            {' '}via HDX · CC BY 4.0
+          </>
+        ) : (
+          <>
+            Data from{' '}
+            <a href="https://data.humdata.org" target="_blank" rel="noreferrer">data.humdata.org</a>
+            {' '}· CC licenses may apply
+          </>
+        )}
       </div>
     </div>
   )

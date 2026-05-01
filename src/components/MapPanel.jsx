@@ -8,7 +8,8 @@ import { fetchOSMLayer, OSM_LAYERS } from '../lib/osm.js'
 import { MAPLIBRE_STYLE } from '../lib/constants.js'
 import { formatPlatform, shortDate } from '../lib/utils.js'
 import { exportWithLayers } from '../lib/export.js'
-import HDXPanel from './HDXPanel.jsx'
+import HDXPanel   from './HDXPanel.jsx'
+import GDACSPanel from './GDACSPanel.jsx'
 import styles from './MapPanel.module.css'
 
 const SOURCE_ID = 'footprints'
@@ -169,6 +170,7 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
   const initialised        = useRef(false)
   const fileInputRef       = useRef(null)
   const hdxBtnRef          = useRef(null)
+  const gdacsBtnRef        = useRef(null)
   const popupRef           = useRef(null)   // reusable MapLibre popup for feature info
   const cursorLayersRef    = useRef(new Set()) // tracks which upload src IDs have cursor handlers
 
@@ -192,8 +194,10 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
   const [uploadError, setUploadError]         = useState(null)
   const [uploading, setUploading]             = useState(false)
   const [isDragging, setIsDragging]           = useState(false)
-  const [showHDX, setShowHDX]                 = useState(false)
-  const [hdxAnchorRect, setHDXAnchorRect]     = useState(null)
+  const [showHDX,   setShowHDX]       = useState(false)
+  const [hdxAnchorRect, setHDXAnchorRect] = useState(null)
+  const [showGDACS, setShowGDACS]     = useState(false)
+  const [gdacsAnchorRect, setGDACSAnchorRect] = useState(null)
   const uploadedLayersRef = useRef([])
 
   // Curated event data layer state: which are loading, which have errors
@@ -926,6 +930,7 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
               const rect = hdxBtnRef.current?.getBoundingClientRect()
               setHDXAnchorRect(rect ?? null)
               setShowHDX(v => !v)
+              setShowGDACS(false)   // mutual exclusion
             }}
             title="Search Humanitarian Data Exchange for datasets in this area"
           >
@@ -933,6 +938,20 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
               <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
             HDX
+          </button>
+
+          <button
+            ref={gdacsBtnRef}
+            className={`${styles.uploadBtn} ${showGDACS ? styles.uploadBtnActive : ''}`}
+            onClick={() => {
+              const rect = gdacsBtnRef.current?.getBoundingClientRect()
+              setGDACSAnchorRect(rect ?? null)
+              setShowGDACS(v => !v)
+              setShowHDX(false)   // mutual exclusion
+            }}
+            title="Browse live disaster alerts from GDACS"
+          >
+            🚨 GDACS
           </button>
 
           <button
@@ -971,6 +990,15 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
           eventName={event?.name ?? ''}
           onAdd={(name, geojson) => { addLayer(name, geojson); setShowHDX(false) }}
           onClose={() => setShowHDX(false)}
+        />
+      )}
+
+      {/* GDACS alerts panel — stays open after adding layers */}
+      {showGDACS && (
+        <GDACSPanel
+          anchorRect={gdacsAnchorRect}
+          onAddLayer={(name, geojson, color) => addLayer(name, geojson, color)}
+          onClose={() => setShowGDACS(false)}
         />
       )}
 

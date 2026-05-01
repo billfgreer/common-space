@@ -347,7 +347,7 @@
 .layerRemove:hover { background: #fee2e2; color: #dc2626; border-color: #fca5a5; }
 
 .actionRow {
-  display: flex; gap: 5px;
+  display: flex; gap: 5px; flex-wrap: wrap;
 }
 
 .uploadBtn {

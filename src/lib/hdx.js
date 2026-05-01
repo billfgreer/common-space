@@ -56,12 +56,15 @@ export function formatToExt(fmt) {
 
 // ─── Search ───────────────────────────────────────────────────────────────────
 // bbox: [west, south, east, north]
+// organization: HDX org slug, e.g. 'cred-crunch' (optional)
+// allFormats: if true, include non-geo resources (CSV, XLSX, etc.)
 // Returns { total: number, datasets: Dataset[] }
 
-export async function searchHDX({ bbox, query = '', rows = 25 } = {}) {
+export async function searchHDX({ bbox, query = '', rows = 25, organization, allFormats = false } = {}) {
   const params = new URLSearchParams({ rows: String(rows), start: '0' })
-  if (query) params.set('q', query)
-  if (bbox)  params.set('ext_bbox', bbox.map(v => +v.toFixed(5)).join(','))
+  if (query)        params.set('q', query)
+  if (bbox)         params.set('ext_bbox', bbox.map(v => +v.toFixed(5)).join(','))
+  if (organization) params.set('fq', `organization:${organization}`)
 
   const apiUrl = `${HDX_API_BASE}/package_search?${params}`
 
@@ -86,13 +89,14 @@ export async function searchHDX({ bbox, query = '', rows = 25 } = {}) {
       updated:   ds.metadata_modified,
       hdxUrl:    `https://data.humdata.org/dataset/${ds.name}`,
       resources: (ds.resources ?? [])
-        .filter(r => isGeoFormat(r.format))
+        .filter(r => allFormats || isGeoFormat(r.format))
         .map(r => ({
           id:     r.id,
           name:   r.name || r.description || ds.title,
           format: r.format,
           url:    r.url,
           size:   r.size,
+          canAdd: isGeoFormat(r.format),
         })),
     }))
     .filter(ds => ds.resources.length > 0)
