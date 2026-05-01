@@ -234,7 +234,7 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
     })
     map.addControl(new maplibregl.NavigationControl(), 'top-right')
     mapRef.current = map
-    popupRef.current = new maplibregl.Popup({ closeButton: true, maxWidth: '300px' })
+    popupRef.current = new maplibregl.Popup({ closeButton: true, maxWidth: '420px' })
 
     map.on('load', () => {
       map.addSource(SOURCE_ID, { type: 'geojson', data: buildGeoJSON([], null) })
@@ -294,13 +294,17 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
       map.on('mouseenter', 'fp-fill', () => { map.getCanvas().style.cursor = 'pointer' })
       map.on('mouseleave', 'fp-fill', () => { map.getCanvas().style.cursor = '' })
 
-      // Generic click handler — shows popup for any uploaded vector feature (OSM, HDX, uploads)
+      // Generic click handler — shows popup for any uploaded vector feature (OSM, HDX, GDACS, uploads)
       map.on('click', e => {
         const ids = uploadedLayersRef.current.flatMap(l => [
           `upload-fill-${l.id}`, `upload-line-${l.id}`, `upload-circle-${l.id}`,
         ]).filter(id => { try { return !!map.getLayer(id) } catch { return false } })
         if (!ids.length) return
-        const features = map.queryRenderedFeatures(e.point, { layers: ids })
+        // Use a small bbox instead of a single pixel — makes thin lines and small circles
+        // reliably clickable (MapLibre's default point tolerance is only 3px).
+        const { x, y } = e.point
+        const bbox = [[x - 6, y - 6], [x + 6, y + 6]]
+        const features = map.queryRenderedFeatures(bbox, { layers: ids })
         if (!features.length) return
         popupRef.current
           .setLngLat(e.lngLat)
@@ -1033,7 +1037,12 @@ const OSM_PREFERRED_ORDER = [
 
 function buildPopupHtml(props) {
   const isOSM = props.osm_id != null
-  const name  = String(props.name || props.Name || props.NAME || props.amenity || 'Feature')
+  // Try common name fields; fall back to event title, id, or a generic label
+  const name = String(
+    props.name || props.Name || props.NAME ||
+    props.title || props.amenity ||
+    props.id   || 'Feature'
+  )
 
   let rows = []
 
@@ -1057,39 +1066,61 @@ function buildPopupHtml(props) {
       seen.add(key)
       let display = String(val)
       if (key === 'phone' || key === 'contact:phone' || key === 'contact:mobile') {
-        display = `<a href="tel:${display}" style="color:#3b82f6">${display}</a>`
+        display = `<a href="tel:${display}" style="color:#0AAFB8">${display}</a>`
       } else if (key === 'website' || key === 'contact:website') {
         const href = display.startsWith('http') ? display : `https://${display}`
-        display = `<a href="${href}" target="_blank" rel="noopener" style="color:#3b82f6">${href.replace(/^https?:\/\//, '').replace(/\/$/, '')}</a>`
+        display = `<a href="${href}" target="_blank" rel="noopener" style="color:#0AAFB8">${href.replace(/^https?:\/\//, '').replace(/\/$/, '')}</a>`
       }
       rows.push([OSM_LABELS[key] || key, display])
     }
 
-    // Catch-all: any remaining useful tags not yet shown
+    // Show ALL remaining tags — nothing hidden from the user
     for (const [k, v] of Object.entries(props)) {
-      if (seen.has(k) || !v || String(v) === '' || k.startsWith('name:') ||
-          k.startsWith('source') || k.startsWith('is_in') || k === 'building') continue
+      if (seen.has(k) || !v || String(v) === '') continue
+      seen.add(k)
       rows.push([k, String(v)])
     }
   } else {
-    // Generic GeoJSON — show all non-empty properties
+    // Generic GeoJSON (HDX, GDACS, uploads) — show every non-empty property
     for (const [k, v] of Object.entries(props)) {
       if (v == null || String(v) === '') continue
-      rows.push([k, String(v)])
+      const display = String(v)
+      // Auto-link URLs
+      if (display.startsWith('http')) {
+        rows.push([k, `<a href="${display}" target="_blank" rel="noopener" style="color:#0AAFB8">${display}</a>`])
+      } else {
+        rows.push([k, display])
+      }
     }
   }
 
-  const td  = (content, header) =>
-    `<td style="color:${header ? '#9ca3af' : 'inherit'};font-size:${header ? '11' : '12'}px;padding:2px ${header ? '8' : '0'}px 2px 0;white-space:${header ? 'nowrap' : 'normal'};word-break:${header ? 'normal' : 'break-word'};vertical-align:top">${content}</td>`
+  const tdStyle = (header) => [
+    `color:${header ? '#9ca3af' : '#111827'}`,
+    `font-size:${header ? '11' : '12'}px`,
+    `padding:3px ${header ? '10' : '0'}px 3px 0`,
+    `white-space:${header ? 'nowrap' : 'normal'}`,
+    `word-break:${header ? 'normal' : 'break-all'}`,
+    'vertical-align:top',
+    'line-height:1.4',
+  ].join(';')
+
   const tableHtml = rows.length
-    ? `<table style="border-collapse:collapse;width:100%;margin-top:6px">${rows.map(([k, v]) => `<tr>${td(k, true)}${td(v, false)}</tr>`).join('')}</table>`
-    : ''
-  const footer = isOSM
-    ? `<div style="font-size:10px;color:#9ca3af;margin-top:6px;border-top:1px solid #f3f4f6;padding-top:4px">OSM ${props.osm_type} · ${props.osm_id}</div>`
+    ? `<table style="border-collapse:collapse;width:100%;margin-top:8px">${
+        rows.map(([k, v], i) =>
+          `<tr style="background:${i % 2 === 0 ? '#f9fafb' : '#fff'}">` +
+          `<td style="${tdStyle(true)}">${k}</td>` +
+          `<td style="${tdStyle(false)}">${v}</td>` +
+          `</tr>`
+        ).join('')
+      }</table>`
     : ''
 
-  return `<div style="font-family:system-ui,sans-serif;max-width:280px;line-height:1.45">
-    <div style="font-weight:600;font-size:13px;padding-bottom:5px;border-bottom:1px solid #e5e7eb">${name}</div>
+  const footer = isOSM
+    ? `<div style="font-size:10px;color:#9ca3af;margin-top:6px;border-top:1px solid #f3f4f6;padding-top:4px">OSM ${props.osm_type || ''} · id ${props.osm_id}</div>`
+    : ''
+
+  return `<div style="font-family:system-ui,sans-serif;line-height:1.45;min-width:200px">
+    <div style="font-weight:700;font-size:13px;padding-bottom:6px;border-bottom:1.5px solid #e5e7eb;color:#111827">${name}</div>
     ${tableHtml}${footer}
   </div>`
 }
