@@ -1,9 +1,24 @@
+import { lazy, Suspense } from 'react'
 import { HashRouter, Routes, Route, useParams, useNavigate, Navigate } from 'react-router-dom'
-import { useState, useEffect } from 'react'
 import Landing from './components/Landing.jsx'
-import Results  from './components/Results.jsx'
-import Compare  from './components/Compare.jsx'
 import { EVENTS } from './lib/events.js'
+
+// Lazy-load heavy routes — MapLibre + geo parsers only load when actually needed.
+// Landing is eager because it's the entry point and has no heavy dependencies.
+const Results = lazy(() => import('./components/Results.jsx'))
+const Compare = lazy(() => import('./components/Compare.jsx'))
+
+// Minimal skeleton shown while the lazy chunk is fetching
+function RouteLoading() {
+  return (
+    <div style={{
+      height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontFamily: 'system-ui, sans-serif', fontSize: 13, color: '#6b7280',
+    }}>
+      Loading…
+    </div>
+  )
+}
 
 // ─── Route components ──────────────────────────────────────────────────────────
 
@@ -17,12 +32,9 @@ function ResultsRoute() {
   const navigate    = useNavigate()
   const event       = EVENTS.find(e => e.id === eventId)
 
-  // If the event slug is unknown, send back home
   if (!event) return <Navigate to="/" replace />
 
   function handleCompare(beforeItem, afterItem, ev) {
-    // Store before/after item data in sessionStorage so Compare can retrieve it
-    // without putting large JSON blobs in the URL
     sessionStorage.setItem(`compare:${ev.id}`, JSON.stringify({ before: beforeItem, after: afterItem }))
     navigate(`/compare/${ev.id}`)
   }
@@ -44,8 +56,6 @@ function CompareRoute() {
 
   if (!event) return <Navigate to="/" replace />
 
-  // Retrieve the before/after items stored when Compare was triggered.
-  // JSON.stringify turns Date objects into ISO strings — revive them here.
   const stored = sessionStorage.getItem(`compare:${eventId}`)
   let items = stored ? JSON.parse(stored) : null
   if (items) {
@@ -56,7 +66,6 @@ function CompareRoute() {
   }
 
   if (!items?.before || !items?.after) {
-    // No data — fall back to the results page for this event
     return <Navigate to={`/event/${eventId}`} replace />
   }
 
@@ -77,12 +86,14 @@ export default function App() {
   return (
     <div style={{ height: '100%', overflow: 'hidden' }}>
       <HashRouter>
-        <Routes>
-          <Route path="/"                    element={<LandingRoute />} />
-          <Route path="/event/:eventId"      element={<ResultsRoute />} />
-          <Route path="/compare/:eventId"    element={<CompareRoute />} />
-          <Route path="*"                    element={<Navigate to="/" replace />} />
-        </Routes>
+        <Suspense fallback={<RouteLoading />}>
+          <Routes>
+            <Route path="/"                    element={<LandingRoute />} />
+            <Route path="/event/:eventId"      element={<ResultsRoute />} />
+            <Route path="/compare/:eventId"    element={<CompareRoute />} />
+            <Route path="*"                    element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
       </HashRouter>
     </div>
   )

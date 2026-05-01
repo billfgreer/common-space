@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
+import { Protocol, PMTiles } from 'pmtiles'
 import { cogTileUrl, cogThumbnailTileUrl } from '../lib/titiler.js'
 import { parseVectorFiles } from '../lib/vectorParse.js'
 import { fetchHDXResource, fetchUSGSShakeMap, formatToExt } from '../lib/hdx.js'
@@ -11,6 +12,13 @@ import { exportWithLayers } from '../lib/export.js'
 import HDXPanel   from './HDXPanel.jsx'
 import GDACSPanel from './GDACSPanel.jsx'
 import styles from './MapPanel.module.css'
+
+// ─── PMTiles protocol — registered once at module load ───────────────────────
+// Enables MapLibre to read Cloud-Native vector/raster tile archives directly
+// via range requests (no tile server needed). Supports both remote URLs and
+// local File objects uploaded by the user.
+const pmtilesProtocol = new Protocol()
+maplibregl.addProtocol('pmtiles', pmtilesProtocol.tile.bind(pmtilesProtocol))
 
 const SOURCE_ID = 'footprints'
 
@@ -475,9 +483,22 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
 
       // Source already added — just toggle visibility
       if (map.getSource(srcId)) {
+        // Standard GeoJSON layers
         try { map.setLayoutProperty(fillId,   'visibility', vis) } catch {}
         try { map.setLayoutProperty(lineId,   'visibility', vis) } catch {}
         try { map.setLayoutProperty(circleId, 'visibility', vis) } catch {}
+        // PMTiles sub-layers (named upload-{fill|line|circle}-{id}-{sourceName})
+        const prefix = `upload-fill-${layer.id}-`
+        const lprefix = `upload-line-${layer.id}-`
+        const cprefix = `upload-circle-${layer.id}-`
+        const style = map.getStyle()
+        if (style?.layers) {
+          for (const sl of style.layers) {
+            if (sl.id.startsWith(prefix) || sl.id.startsWith(lprefix) || sl.id.startsWith(cprefix)) {
+              try { map.setLayoutProperty(sl.id, 'visibility', vis) } catch {}
+            }
+          }
+        }
         continue
       }
 
@@ -540,20 +561,98 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
     setUploadedLayers(prev => [...prev, { id, name, color, visible: true, featureCount, geojson }])
   }, [])
 
+  // ── PMTiles file upload ───────────────────────────────────────────────────
+  // Adds a local .pmtiles archive as a vector tile source via the registered
+  // protocol handler. Inspects the archive header to discover layer names.
+  const handlePMTilesFile = useCallback(async (name, file) => {
+    const map = mapRef.current
+    if (!map) return
+
+    const blobUrl = URL.createObjectURL(file)
+    const pmUrl   = 'pmtiles://' + blobUrl
+
+    // Register this file with the protocol so MapLibre can fetch tiles from it
+    const pmInstance = new PMTiles(blobUrl)
+    pmtilesProtocol.add(pmInstance)
+
+    // Read the archive header to determine tile type and discover vector layers
+    let meta = {}
+    try { meta = await pmInstance.getMetadata() ?? {} } catch {}
+
+    const color   = UPLOAD_COLORS[uploadedLayersRef.current.length % UPLOAD_COLORS.length]
+    const layerId = `${Date.now()}-${Math.random().toString(36).slice(2)}`
+    const srcId   = `upload-src-${layerId}`
+
+    const applyPM = () => {
+      try {
+        map.addSource(srcId, { type: 'vector', url: pmUrl })
+
+        // Discover layer names from TileJSON metadata; fall back to a wildcard layer
+        const vectorLayers = meta?.vector_layers?.map(l => l.id) ?? ['*']
+        for (const layerName of vectorLayers) {
+          const fillId   = `upload-fill-${layerId}-${layerName}`
+          const lineId   = `upload-line-${layerId}-${layerName}`
+          const circleId = `upload-circle-${layerId}-${layerName}`
+
+          // Fill (polygon interiors)
+          map.addLayer({
+            id: fillId, type: 'fill', source: srcId, 'source-layer': layerName,
+            filter: ['==', ['geometry-type'], 'Polygon'],
+            paint: { 'fill-color': color, 'fill-opacity': 0.2 },
+          })
+          // Line (polygon outlines + linestrings)
+          map.addLayer({
+            id: lineId, type: 'line', source: srcId, 'source-layer': layerName,
+            filter: ['any', ['==', ['geometry-type'], 'Polygon'], ['==', ['geometry-type'], 'LineString'],
+                    ['==', ['geometry-type'], 'MultiPolygon'], ['==', ['geometry-type'], 'MultiLineString']],
+            paint: { 'line-color': color, 'line-width': 2, 'line-opacity': 0.9 },
+          })
+          // Circle (points)
+          map.addLayer({
+            id: circleId, type: 'circle', source: srcId, 'source-layer': layerName,
+            filter: ['any', ['==', ['geometry-type'], 'Point'], ['==', ['geometry-type'], 'MultiPoint']],
+            paint: { 'circle-radius': 5, 'circle-color': color, 'circle-stroke-width': 1.5, 'circle-stroke-color': '#fff' },
+          })
+
+          // Pointer cursor on hover
+          for (const lid of [fillId, lineId, circleId]) {
+            map.on('mouseenter', lid, () => { map.getCanvas().style.cursor = 'pointer' })
+            map.on('mouseleave', lid, () => { map.getCanvas().style.cursor = '' })
+          }
+        }
+      } catch (e) { console.warn('PMTiles layer error:', e) }
+    }
+
+    if (map.isStyleLoaded()) applyPM()
+    else map.once('load', applyPM)
+
+    // Store in uploadedLayers with a sentinel geojson so the panel renders
+    setUploadedLayers(prev => [
+      ...prev,
+      { id: layerId, name: `${name} (PMTiles)`, color, visible: true, featureCount: '∞', geojson: null },
+    ])
+  }, [])
+
   // ── File upload parsing ───────────────────────────────────────────────────
   const handleFiles = useCallback(async (files) => {
     if (!files?.length) return
     setUploadError(null)
     setUploading(true)
     try {
-      const { name, geojson } = await parseVectorFiles(files)
-      addLayer(name, geojson)
+      const result = await parseVectorFiles(files)
+
+      if (result.pmtiles) {
+        // PMTiles: vector tile archive — added directly as a MapLibre source
+        await handlePMTilesFile(result.name, result.pmtiles)
+      } else {
+        addLayer(result.name, result.geojson)
+      }
     } catch (err) {
       setUploadError(err.message)
     } finally {
       setUploading(false)
     }
-  }, [addLayer])
+  }, [addLayer, handlePMTilesFile])
 
   // ── Load a pre-curated event data layer ──────────────────────────────────
   // Supports three urlType values:
@@ -630,10 +729,20 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
   function removeLayer(layerId) {
     const map = mapRef.current
     if (map && map.isStyleLoaded()) {
+      // Remove standard GeoJSON layers
       try { map.removeLayer(`upload-fill-${layerId}`)   } catch {}
       try { map.removeLayer(`upload-line-${layerId}`)   } catch {}
       try { map.removeLayer(`upload-circle-${layerId}`) } catch {}
-      try { map.removeSource(`upload-src-${layerId}`)   } catch {}
+      // Remove PMTiles sub-layers (named with source-layer suffix)
+      const style = map.getStyle()
+      if (style?.layers) {
+        style.layers
+          .filter(l => l.id.startsWith(`upload-fill-${layerId}-`) ||
+                       l.id.startsWith(`upload-line-${layerId}-`) ||
+                       l.id.startsWith(`upload-circle-${layerId}-`))
+          .forEach(l => { try { map.removeLayer(l.id) } catch {} })
+      }
+      try { map.removeSource(`upload-src-${layerId}`) } catch {}
     }
     setUploadedLayers(prev => prev.filter(l => l.id !== layerId))
   }
@@ -687,6 +796,7 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
   }
 
   function downloadLayer(layer) {
+    if (!layer.geojson) return   // PMTiles layers have no local GeoJSON to download
     const json = JSON.stringify(layer.geojson, null, 2)
     const blob = new Blob([json], { type: 'application/geo+json' })
     const url  = URL.createObjectURL(blob)
@@ -900,7 +1010,9 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
                   <span className={styles.layerName}>{layer.name}</span>
                   <span className={styles.layerCount}>{layer.featureCount}</span>
                 </button>
-                <button className={styles.layerDownload} onClick={() => downloadLayer(layer)} title="Download as GeoJSON"><DownloadIcon /></button>
+                {layer.geojson && (
+                  <button className={styles.layerDownload} onClick={() => downloadLayer(layer)} title="Download as GeoJSON"><DownloadIcon /></button>
+                )}
                 <button className={styles.layerRemove} onClick={() => removeLayer(layer.id)} title="Remove layer">✕</button>
               </div>
             ))}
@@ -980,7 +1092,7 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
           ref={fileInputRef}
           type="file"
           multiple
-          accept=".geojson,.json,.kml,.gpx,.shp,.dbf,.prj,.zip"
+          accept=".geojson,.json,.fgb,.pmtiles,.kml,.gpx,.shp,.dbf,.prj,.zip"
           style={{ display: 'none' }}
           onChange={e => { handleFiles(e.target.files); e.target.value = '' }}
         />
