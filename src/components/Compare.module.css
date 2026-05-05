@@ -170,3 +170,69 @@
   border-radius: 8px; transition: background .15s;
 }
 .copyBtn:hover { background: #333; }
+
+/* ── Sentinel-2 swap controls ── */
+.s2Area {
+  position: absolute;
+  top: 54px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.s2AreaBefore { left: 16px; }
+.s2AreaAfter  { right: 16px; flex-direction: row-reverse; }
+
+.s2Btn {
+  background: rgba(0, 0, 0, 0.60);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  padding: 4px 11px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+.s2Btn:hover:not(:disabled) { background: rgba(0, 0, 0, 0.85); }
+.s2Btn:disabled { opacity: 0.55; cursor: default; }
+
+.s2Badge {
+  background: rgba(34, 197, 94, 0.80);
+  color: #fff;
+  padding: 4px 11px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  backdrop-filter: blur(6px);
+  white-space: nowrap;
+}
+
+.s2Reset {
+  background: rgba(0, 0, 0, 0.50);
+  color: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  cursor: pointer;
+  padding: 4px 9px;
+  border-radius: 4px;
+  backdrop-filter: blur(6px);
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.s2Reset:hover { color: #fff; background: rgba(0, 0, 0, 0.75); }
+
+.s2ErrorNote {
+  font-size: 11px;
+  color: #ef4444;
+  font-weight: 600;
+}

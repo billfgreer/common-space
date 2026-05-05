@@ -15,3 +15,6 @@ export const SATELLOGIC_BASE = 'https://satellogic-earthview.s3.us-west-2.amazon
 export const PLANET_BASE     = 'https://www.planet.com/data/stac'
 // Umbra Open SAR Data (AWS Open Data, public S3)
 export const UMBRA_BASE      = 'https://s3.us-west-2.amazonaws.com/umbra-open-data-catalog/stac'
+
+// Element84 Earth Search — Sentinel-2 L2A and other open datasets
+export const ELEMENT84_STAC  = 'https://earth-search.aws.element84.com/v1'

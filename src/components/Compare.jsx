@@ -4,6 +4,7 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 import Header from './Header.jsx'
 import { cogTileUrl } from '../lib/titiler.js'
 import { MAPLIBRE_STYLE } from '../lib/constants.js'
+import { fetchLatestS2 } from '../lib/sentinel2.js'
 import { formatDate, formatPlatform } from '../lib/utils.js'
 import styles from './Compare.module.css'
 
@@ -59,6 +60,10 @@ export default function Compare({ beforeItem, afterItem, event, onBack, onHome }
   const [sliderPct, setSliderPct]   = useState(50)
   const [modal, setModal]           = useState(null)
   const [copied, setCopied]         = useState(false)
+  // Sentinel-2 swap state — null means original imagery is showing
+  const [s2Slots, setS2Slots]       = useState({ before: null, after: null })
+  const [s2Loading, setS2Loading]   = useState(null)   // 'before' | 'after' | null
+  const [s2Error, setS2Error]       = useState(null)
   const dragging     = useRef(false)
   const bodyRef      = useRef(null)
   const beforeMapEl  = useRef(null)
@@ -139,6 +144,61 @@ export default function Compare({ beforeItem, afterItem, event, onBack, onHome }
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Sentinel-2 swap ──────────────────────────────────
+  async function loadS2(slot) {
+    const map  = slot === 'before' ? beforeMapRef.current : afterMapRef.current
+    const item = slot === 'before' ? beforeItem : afterItem
+    const bbox = event?.bbox || afterItem?.bbox || beforeItem?.bbox
+    if (!map || !bbox) return
+
+    setS2Loading(slot)
+    setS2Error(null)
+    try {
+      const s2 = await fetchLatestS2({ bbox })
+      if (!s2) { setS2Error('No Sentinel-2 scene found for this area.'); return }
+
+      const sourceId = `cog-${slot}`
+      const layerId  = `cog-${slot}-layer`
+
+      // Swap the existing COG source with the S2 scene
+      try { map.removeLayer(layerId) }  catch {}
+      try { map.removeSource(sourceId) } catch {}
+      map.addSource(sourceId, { type: 'raster', tiles: [cogTileUrl(s2.cogUrl)], tileSize: 256 })
+      map.addLayer({ id: layerId, type: 'raster', source: sourceId, paint: { 'raster-opacity': 0.95 } })
+
+      setS2Slots(prev => ({ ...prev, [slot]: s2 }))
+    } catch (e) {
+      if (e.name !== 'AbortError') {
+        console.error('S2 load error:', e)
+        setS2Error('Failed to load Sentinel-2 imagery.')
+      }
+    } finally {
+      setS2Loading(null)
+    }
+  }
+
+  function resetSlot(slot) {
+    const map  = slot === 'before' ? beforeMapRef.current : afterMapRef.current
+    const item = slot === 'before' ? beforeItem : afterItem
+    if (!map) return
+
+    const sourceId = `cog-${slot}`
+    const layerId  = `cog-${slot}-layer`
+
+    try { map.removeLayer(layerId) }  catch {}
+    try { map.removeSource(sourceId) } catch {}
+
+    if (item?.cogUrl) {
+      try {
+        map.addSource(sourceId, { type: 'raster', tiles: [cogTileUrl(item.cogUrl)], tileSize: 256 })
+        map.addLayer({ id: layerId, type: 'raster', source: sourceId, paint: { 'raster-opacity': 0.95 } })
+      } catch (e) { console.warn('reset COG error:', e) }
+    }
+
+    setS2Slots(prev => ({ ...prev, [slot]: null }))
+    setS2Error(null)
+  }
+
   // ── Slider drag ──────────────────────────────────────
   const updateSlider = useCallback((clientX) => {
     if (!bodyRef.current) return
@@ -189,6 +249,26 @@ export default function Compare({ beforeItem, afterItem, event, onBack, onHome }
           <span className={`${styles.label} ${styles.labelBefore}`}>
             Before · {formatDate(beforeItem?.datetime)}
           </span>
+          {/* Sentinel-2 swap — before side */}
+          <div className={`${styles.s2Area} ${styles.s2AreaBefore}`}>
+            {s2Slots.before ? (
+              <>
+                <span className={styles.s2Badge}>
+                  📡 S2 · {formatDate(s2Slots.before.datetime)}
+                  {s2Slots.before.cloudCover != null ? ` · ${Math.round(s2Slots.before.cloudCover)}% ☁` : ''}
+                </span>
+                <button className={styles.s2Reset} onClick={() => resetSlot('before')} title="Restore original imagery">✕ Reset</button>
+              </>
+            ) : (
+              <button
+                className={styles.s2Btn}
+                disabled={s2Loading != null}
+                onClick={() => loadS2('before')}
+              >
+                {s2Loading === 'before' ? '…Loading' : '📡 Latest Sentinel-2'}
+              </button>
+            )}
+          </div>
         </div>
 
         {/* After map — full width, clipped by slider */}
@@ -200,6 +280,26 @@ export default function Compare({ beforeItem, afterItem, event, onBack, onHome }
           <span className={`${styles.label} ${styles.labelAfter}`}>
             After · {formatDate(afterItem?.datetime)}
           </span>
+          {/* Sentinel-2 swap — after side */}
+          <div className={`${styles.s2Area} ${styles.s2AreaAfter}`}>
+            {s2Slots.after ? (
+              <>
+                <span className={styles.s2Badge}>
+                  📡 S2 · {formatDate(s2Slots.after.datetime)}
+                  {s2Slots.after.cloudCover != null ? ` · ${Math.round(s2Slots.after.cloudCover)}% ☁` : ''}
+                </span>
+                <button className={styles.s2Reset} onClick={() => resetSlot('after')} title="Restore original imagery">✕ Reset</button>
+              </>
+            ) : (
+              <button
+                className={styles.s2Btn}
+                disabled={s2Loading != null}
+                onClick={() => loadS2('after')}
+              >
+                {s2Loading === 'after' ? '…Loading' : '📡 Latest Sentinel-2'}
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Drag handle */}
@@ -223,17 +323,21 @@ export default function Compare({ beforeItem, afterItem, event, onBack, onHome }
         <div className={styles.metaItem}>
           <span className={`${styles.metaBadge} ${styles.metaBefore}`}>Before</span>
           <span className={styles.metaText}>
-            {formatDate(beforeItem?.datetime)} · {beforeItem?.platform || '—'}
+            {s2Slots.before
+              ? `${formatDate(s2Slots.before.datetime)} · Sentinel-2${s2Slots.before.cloudCover != null ? ` · ${Math.round(s2Slots.before.cloudCover)}% cloud` : ''}`
+              : `${formatDate(beforeItem?.datetime)} · ${beforeItem?.platform || '—'}`}
           </span>
         </div>
         <div className={styles.metaDivider} />
         <div className={styles.metaItem}>
           <span className={`${styles.metaBadge} ${styles.metaAfter}`}>After</span>
           <span className={styles.metaText}>
-            {formatDate(afterItem?.datetime)} · {afterItem?.platform || '—'}
-            {afterItem?.cloudCover != null ? ` · ${Math.round(afterItem.cloudCover)}% cloud` : ''}
+            {s2Slots.after
+              ? `${formatDate(s2Slots.after.datetime)} · Sentinel-2${s2Slots.after.cloudCover != null ? ` · ${Math.round(s2Slots.after.cloudCover)}% cloud` : ''}`
+              : `${formatDate(afterItem?.datetime)} · ${afterItem?.platform || '—'}${afterItem?.cloudCover != null ? ` · ${Math.round(afterItem.cloudCover)}% cloud` : ''}`}
           </span>
         </div>
+        {s2Error && <span className={styles.s2ErrorNote}>{s2Error}</span>}
       </div>
 
       {/* ── Toolbar ── */}
