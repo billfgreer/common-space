@@ -18,3 +18,6 @@ export const UMBRA_BASE      = 'https://s3.us-west-2.amazonaws.com/umbra-open-da
 
 // Element84 Earth Search — Sentinel-2 L2A and other open datasets
 export const ELEMENT84_STAC  = 'https://earth-search.aws.element84.com/v1'
+
+// Microsoft Planetary Computer — titiler-pgstac (free, CORS open, not rate-limited like titiler.xyz)
+export const MPC_DATA        = 'https://planetarycomputer.microsoft.com/api/data/v1'

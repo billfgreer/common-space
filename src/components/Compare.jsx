@@ -160,10 +160,11 @@ export default function Compare({ beforeItem, afterItem, event, onBack, onHome }
       const sourceId = `cog-${slot}`
       const layerId  = `cog-${slot}-layer`
 
-      // Swap the existing COG source with the S2 scene
+      // Swap the existing COG source with the S2 mosaic.
+      // s2.tileUrl is a MPC titiler-pgstac {z}/{x}/{y} template — no titiler.xyz rate limits.
       try { map.removeLayer(layerId) }  catch {}
       try { map.removeSource(sourceId) } catch {}
-      map.addSource(sourceId, { type: 'raster', tiles: [cogTileUrl(s2.cogUrl)], tileSize: 256 })
+      map.addSource(sourceId, { type: 'raster', tiles: [s2.tileUrl], tileSize: 256, minzoom: 8, maxzoom: 16 })
       map.addLayer({ id: layerId, type: 'raster', source: sourceId, paint: { 'raster-opacity': 0.95 } })
 
       setS2Slots(prev => ({ ...prev, [slot]: s2 }))
