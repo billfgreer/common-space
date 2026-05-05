@@ -148,7 +148,9 @@ export default function Compare({ beforeItem, afterItem, event, onBack, onHome }
   async function loadS2(slot) {
     const map  = slot === 'before' ? beforeMapRef.current : afterMapRef.current
     const item = slot === 'before' ? beforeItem : afterItem
-    const bbox = event?.bbox || afterItem?.bbox || beforeItem?.bbox
+    // Use the specific item's bbox so the S2 search targets the same footprint,
+    // not the broader event extent which may span many satellite tiles.
+    const bbox = item?.bbox
     if (!map || !bbox) return
 
     setS2Loading(slot)
