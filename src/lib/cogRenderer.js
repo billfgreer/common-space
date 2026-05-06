@@ -14,6 +14,12 @@
  *    MapLibre's raster pipeline.
  *  - COG objects are cached (weak per-URL) so metadata is only fetched once.
  *
+ * Band auto-detection:
+ *  - On first open, reads GDAL_METADATA XML (TIFF tag 42112) for explicit
+ *    color interpretation (Red/Green/Blue sample indices).
+ *  - Falls back to PhotometricInterpretation tag.
+ *  - Explicit bidx in the tile URL always overrides auto-detection (used for SAR).
+ *
  * Coordinate mapping:
  *  - Uses `item.bbox` (WGS84) as the COG's geographic extent, performing a
  *    simple linear mapping from geographic coords → pixel coords.  For the
@@ -30,13 +36,65 @@ async function geotiff() {
 }
 
 // ─── GeoTIFF object cache ─────────────────────────────────────────────────────
-const cogCache  = new Map()   // url → Promise<{tiff, imageCount, images}>
+const cogCache  = new Map()   // url → Promise<{tiff, imageCount, images, rgbSamples, nodataValue}>
 const CACHE_MAX = 20
 
 function evict() {
   if (cogCache.size >= CACHE_MAX) {
     cogCache.delete(cogCache.keys().next().value)
   }
+}
+
+// ─── Band auto-detection ──────────────────────────────────────────────────────
+// Reads GDAL_METADATA XML (TIFF tag 42112) for explicit color interpretation.
+// Satellite COGs store bands in BGRN, RGBN, or RGB order — the only reliable
+// way to know which is from the per-band ColorInterp metadata GDAL embeds.
+function detectRGBSamples(image) {
+  const fd = image.fileDirectory
+
+  // ── GDAL_METADATA XML (tag 42112) — most reliable ──────────────────────────
+  let gdal = fd[42112]
+  if (gdal != null) {
+    if (typeof gdal !== 'string') {
+      try { gdal = new TextDecoder().decode(gdal) } catch { gdal = null }
+    }
+  }
+  if (gdal) {
+    const interps = []
+    // Matches both attribute orderings:
+    //   <Item name="DESCRIPTION" sample="0" role="colorinterp">Red</Item>
+    //   <Item name="ColorInterp" sample="0">Red</Item>
+    const re = /<Item[^>]*sample="(\d+)"[^>]*>(Red|Green|Blue|Alpha|Gray|Undefined)<\/Item>/gi
+    let m
+    while ((m = re.exec(gdal)) !== null) {
+      interps[parseInt(m[1])] = m[2].toLowerCase()
+    }
+    const rI = interps.findIndex(v => v === 'red')
+    const gI = interps.findIndex(v => v === 'green')
+    const bI = interps.findIndex(v => v === 'blue')
+    if (rI >= 0 && gI >= 0 && bI >= 0) {
+      return [rI, gI, bI]
+    }
+  }
+
+  // ── PhotometricInterpretation fallback ─────────────────────────────────────
+  const photometric = fd.PhotometricInterpretation
+  const n = image.getSamplesPerPixel()
+  if (photometric === 2 && n >= 3) return [0, 1, 2]   // RGB photometric
+  if (photometric === 1 || n === 1) return [0]          // Grayscale
+
+  // Unknown: assume first 3 bands are RGB
+  return [0, 1, 2]
+}
+
+function detectNodata(image) {
+  let raw = image.fileDirectory[42113]  // GDAL_NODATA (stored as ASCII string)
+  if (raw == null) return 0
+  if (typeof raw !== 'string') {
+    try { raw = new TextDecoder().decode(raw) } catch { return 0 }
+  }
+  const v = parseFloat(raw.trim())
+  return isNaN(v) ? 0 : v
 }
 
 async function openCOG(cogUrl) {
@@ -51,7 +109,10 @@ async function openCOG(cogUrl) {
       const images = await Promise.all(
         Array.from({ length: imageCount }, (_, i) => tiff.getImage(i))
       )
-      return { tiff, imageCount, images }
+      // Detect band ordering and nodata from the full-resolution image metadata
+      const rgbSamples  = detectRGBSamples(images[0])
+      const nodataValue = detectNodata(images[0])
+      return { tiff, imageCount, images, rgbSamples, nodataValue }
     } catch (e) {
       console.warn('[cog] open failed:', cogUrl, e?.message)
       return null
@@ -97,11 +158,13 @@ function pickOverview(images, geoBbox, tileBbox) {
 }
 
 // ─── Render one 256×256 tile ──────────────────────────────────────────────────
-async function renderTile(cogUrl, geoBbox, z, x, y, { rescale = [0, 255], bidx = [1, 2, 3], isSAR = false } = {}) {
+// bidx is 1-indexed (matching STAC/titiler convention). Empty array = auto-detect
+// from GDAL metadata (the normal case for optical imagery). SAR always passes [1].
+async function renderTile(cogUrl, geoBbox, z, x, y, { rescale = [0, 255], bidx = [], isSAR = false } = {}) {
   const cog = await openCOG(cogUrl)
   if (!cog) return null
 
-  const { images } = cog
+  const { images, rgbSamples, nodataValue } = cog
   const tileBbox   = tile2bbox(z, x, y)
   const [bW, bS, bE, bN] = geoBbox
 
@@ -142,7 +205,14 @@ async function renderTile(cogUrl, geoBbox, z, x, y, { rescale = [0, 255], bidx =
   const outX = Math.round((clampWest - tileBbox.west) / (tileBbox.east - tileBbox.west) * SIZE)
   const outY = Math.round((tileBbox.north - clampNorth) / (tileBbox.north - tileBbox.south) * SIZE)
 
-  const samples  = isSAR ? [0] : bidx.map(b => b - 1)
+  // Band selection:
+  //   SAR → always single band [0]
+  //   explicit bidx (1-indexed) → convert to 0-indexed
+  //   empty bidx → use GDAL-detected RGB sample indices
+  const samples = isSAR
+    ? [0]
+    : (bidx.length > 0 ? bidx.map(b => b - 1) : rgbSamples)
+
   let rasters
   try {
     rasters = await image.readRasters({
@@ -151,7 +221,7 @@ async function renderTile(cogUrl, geoBbox, z, x, y, { rescale = [0, 255], bidx =
       width:      outW,
       height:     outH,
       interleave: false,
-      fillValue:  0,
+      fillValue:  nodataValue,
     })
   } catch (e) {
     console.warn('[cog] readRasters failed:', e?.message)
@@ -162,11 +232,11 @@ async function renderTile(cogUrl, geoBbox, z, x, y, { rescale = [0, 255], bidx =
   const pixels = new Uint8ClampedArray(SIZE * SIZE * 4)
   const [rMin, rMax] = rescale
   const scale        = rMax > rMin ? 255 / (rMax - rMin) : 1
-
   const clamp = v => Math.max(0, Math.min(255, Math.round((v - rMin) * scale)))
-  const nodata = 0  // treat pure black as transparent
 
-  if (isSAR) {
+  const nodata = nodataValue
+
+  if (isSAR || samples.length === 1) {
     const band = rasters[0]
     for (let row = 0; row < outH; row++) {
       for (let col = 0; col < outW; col++) {
@@ -208,15 +278,18 @@ async function renderTile(cogUrl, geoBbox, z, x, y, { rescale = [0, 255], bidx =
  * @param {string}   cogUrl   - HTTPS URL of the COG
  * @param {number[]} bbox     - [west, south, east, north] in WGS84
  * @param {object}   opts     - { rescale, bidx, isSAR }
+ *   bidx: 1-indexed band indices. Omit (or pass []) to auto-detect from GDAL
+ *         metadata — correct for all optical imagery regardless of storage order.
+ *         Pass [1] + isSAR:true for SAR single-band rendering.
  * @returns {string}          - tile URL template with {z}/{x}/{y}
  */
-export function cogTileUrlTemplate(cogUrl, bbox, { rescale = '0,255', bidx = [1, 2, 3], isSAR = false } = {}) {
+export function cogTileUrlTemplate(cogUrl, bbox, { rescale = '0,255', bidx = null, isSAR = false } = {}) {
   const params = new URLSearchParams({
     url:     cogUrl,
     bbox:    bbox.join(','),
     rescale,
   })
-  bidx.forEach(b => params.append('bidx', String(b)))
+  if (bidx?.length) bidx.forEach(b => params.append('bidx', String(b)))
   if (isSAR) params.set('sar', '1')
   return `cog://tile/{z}/{x}/{y}?${params}`
 }
@@ -230,7 +303,7 @@ export function cogTileUrlTemplate(cogUrl, bbox, { rescale = '0,255', bidx = [1,
  */
 export async function cogProtocolHandler({ url }, abortController) {
   try {
-    // Parse: cog://tile/Z/X/Y?url=...&bbox=W,S,E,N&rescale=min,max&bidx=1&bidx=2&bidx=3
+    // Parse: cog://tile/Z/X/Y?url=...&bbox=W,S,E,N&rescale=min,max[&bidx=1&bidx=2&bidx=3]
     const afterScheme = url.replace('cog://tile/', '')
     const [pathPart, queryPart] = afterScheme.split('?')
     const [z, x, y]  = pathPart.split('/').map(Number)
@@ -241,7 +314,7 @@ export async function cogProtocolHandler({ url }, abortController) {
     const bbox        = bboxStr ? bboxStr.split(',').map(Number) : null
     const rescaleStr  = params.get('rescale') || '0,255'
     const rescale     = rescaleStr.split(',').map(Number)
-    const bidx        = params.getAll('bidx').map(Number)
+    const bidx        = params.getAll('bidx').map(Number)  // empty = auto-detect
     const isSAR       = params.get('sar') === '1'
 
     if (!cogUrl || !bbox || bbox.length < 4) return { data: new ArrayBuffer(0) }
@@ -249,7 +322,7 @@ export async function cogProtocolHandler({ url }, abortController) {
 
     const imageData = await renderTile(
       cogUrl, bbox, z, x, y,
-      { rescale, bidx: bidx.length ? bidx : [1, 2, 3], isSAR }
+      { rescale, bidx, isSAR }
     )
 
     if (!imageData) return { data: new ArrayBuffer(0) }

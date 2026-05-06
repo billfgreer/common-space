@@ -25,10 +25,12 @@ maplibregl.addProtocol('cog', cogProtocolHandler)
 const SOURCE_ID = 'footprints'
 
 // Returns cogTileUrlTemplate options appropriate for the item's sensor type.
-// SAR imagery (Umbra, etc.) is single-band floating-point — grayscale with wide rescale range.
+// Optical imagery omits bidx so cogRenderer auto-detects the correct RGB band
+// order from GDAL metadata — handles BGRN, RGBN, and RGB storage layouts.
+// SAR imagery (Umbra, etc.) is single-band floating-point — explicit bidx required.
 function cogOpts(item) {
   if (item?.isSAR) return { bidx: [1], rescale: '0,1500', isSAR: true }
-  return { bidx: [1, 2, 3], rescale: '0,255' }
+  return {}   // optical: auto-detect band order from GDAL metadata in cogRenderer
 }
 
 // Colour palette for successive uploaded layers
