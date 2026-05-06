@@ -2,7 +2,10 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import Header from './Header.jsx'
-import { cogTileUrl } from '../lib/titiler.js'
+import { cogTileUrlTemplate, cogProtocolHandler } from '../lib/cogRenderer.js'
+
+// Register the cog:// protocol once — safe to call multiple times (MapLibre deduplicates)
+try { maplibregl.addProtocol('cog', cogProtocolHandler) } catch {}
 import { MAPLIBRE_STYLE } from '../lib/constants.js'
 import { fetchLatestS2 } from '../lib/sentinel2.js'
 import { formatDate, formatPlatform } from '../lib/utils.js'
@@ -105,7 +108,7 @@ export default function Compare({ beforeItem, afterItem, event, onBack, onHome }
       }
       if (beforeItem?.cogUrl) {
         try {
-          bMap.addSource('cog-before', { type: 'raster', tiles: [cogTileUrl(beforeItem.cogUrl)], tileSize: 256 })
+          bMap.addSource('cog-before', { type: 'raster', tiles: [cogTileUrlTemplate(beforeItem.cogUrl, beforeItem.bbox)], tileSize: 256 })
           bMap.addLayer({ id: 'cog-before-layer', type: 'raster', source: 'cog-before', paint: { 'raster-opacity': 0.95 } })
         } catch (e) { console.warn('before COG error:', e) }
       }
@@ -127,7 +130,7 @@ export default function Compare({ beforeItem, afterItem, event, onBack, onHome }
     aMap.on('load', () => {
       if (afterItem?.cogUrl) {
         try {
-          aMap.addSource('cog-after', { type: 'raster', tiles: [cogTileUrl(afterItem.cogUrl)], tileSize: 256 })
+          aMap.addSource('cog-after', { type: 'raster', tiles: [cogTileUrlTemplate(afterItem.cogUrl, afterItem.bbox)], tileSize: 256 })
           aMap.addLayer({ id: 'cog-after-layer', type: 'raster', source: 'cog-after', paint: { 'raster-opacity': 0.95 } })
         } catch (e) { console.warn('after COG error:', e) }
       }
@@ -193,7 +196,7 @@ export default function Compare({ beforeItem, afterItem, event, onBack, onHome }
 
     if (item?.cogUrl) {
       try {
-        map.addSource(sourceId, { type: 'raster', tiles: [cogTileUrl(item.cogUrl)], tileSize: 256 })
+        map.addSource(sourceId, { type: 'raster', tiles: [cogTileUrlTemplate(item.cogUrl, item.bbox)], tileSize: 256 })
         map.addLayer({ id: layerId, type: 'raster', source: sourceId, paint: { 'raster-opacity': 0.95 } })
       } catch (e) { console.warn('reset COG error:', e) }
     }
