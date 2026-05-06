@@ -46,55 +46,34 @@ function evict() {
 }
 
 // ─── Band auto-detection ──────────────────────────────────────────────────────
-// Reads GDAL_METADATA XML (TIFF tag 42112) for explicit color interpretation.
-// Satellite COGs store bands in BGRN, RGBN, or RGB order — the only reliable
-// way to know which is from the per-band ColorInterp metadata GDAL embeds.
-function detectRGBSamples(image) {
-  const fd = image.fileDirectory
+// Uses geotiff.js's built-in image.getGDALMetadata(sampleIndex) API to read
+// per-band ColorInterp values from GDAL_METADATA XML (lazy-loaded, one range
+// request). Satellite COGs are stored in BGRN, RGBN, or RGB order depending
+// on the provider — GDAL_METADATA is the only reliable source of truth.
+async function detectRGBSamples(image) {
+  try {
+    const n = image.getSamplesPerPixel()
+    if (n >= 3 && image.fileDirectory.hasTag('GDAL_METADATA')) {
+      const interps = []
+      // getGDALMetadata(i) returns e.g. { ColorInterp: 'Blue', DESCRIPTION: 'Blue' }
+      for (let i = 0; i < Math.min(n, 6); i++) {
+        const meta = await image.getGDALMetadata(i)
+        interps.push(meta?.ColorInterp?.toLowerCase() ?? '')
+      }
+      const rI = interps.findIndex(v => v === 'red')
+      const gI = interps.findIndex(v => v === 'green')
+      const bI = interps.findIndex(v => v === 'blue')
+      if (rI >= 0 && gI >= 0 && bI >= 0) return [rI, gI, bI]
+    }
+  } catch {}
 
-  // ── GDAL_METADATA XML (tag 42112) — most reliable ──────────────────────────
-  let gdal = fd[42112]
-  if (gdal != null) {
-    if (typeof gdal !== 'string') {
-      try { gdal = new TextDecoder().decode(gdal) } catch { gdal = null }
-    }
-  }
-  if (gdal) {
-    const interps = []
-    // Matches both attribute orderings:
-    //   <Item name="DESCRIPTION" sample="0" role="colorinterp">Red</Item>
-    //   <Item name="ColorInterp" sample="0">Red</Item>
-    const re = /<Item[^>]*sample="(\d+)"[^>]*>(Red|Green|Blue|Alpha|Gray|Undefined)<\/Item>/gi
-    let m
-    while ((m = re.exec(gdal)) !== null) {
-      interps[parseInt(m[1])] = m[2].toLowerCase()
-    }
-    const rI = interps.findIndex(v => v === 'red')
-    const gI = interps.findIndex(v => v === 'green')
-    const bI = interps.findIndex(v => v === 'blue')
-    if (rI >= 0 && gI >= 0 && bI >= 0) {
-      return [rI, gI, bI]
-    }
-  }
-
-  // ── PhotometricInterpretation fallback ─────────────────────────────────────
-  const photometric = fd.PhotometricInterpretation
+  // ── PhotometricInterpretation fallback (eager tag, no extra request) ────────
+  const photometric = image.fileDirectory.getValue('PhotometricInterpretation')
   const n = image.getSamplesPerPixel()
-  if (photometric === 2 && n >= 3) return [0, 1, 2]   // RGB photometric
-  if (photometric === 1 || n === 1) return [0]          // Grayscale
+  if (photometric === 2 && n >= 3) return [0, 1, 2]  // RGB photometric
+  if (photometric === 1 || n === 1) return [0]         // Grayscale
 
-  // Unknown: assume first 3 bands are RGB
-  return [0, 1, 2]
-}
-
-function detectNodata(image) {
-  let raw = image.fileDirectory[42113]  // GDAL_NODATA (stored as ASCII string)
-  if (raw == null) return 0
-  if (typeof raw !== 'string') {
-    try { raw = new TextDecoder().decode(raw) } catch { return 0 }
-  }
-  const v = parseFloat(raw.trim())
-  return isNaN(v) ? 0 : v
+  return [0, 1, 2]  // unknown — assume RGB
 }
 
 async function openCOG(cogUrl) {
@@ -109,9 +88,10 @@ async function openCOG(cogUrl) {
       const images = await Promise.all(
         Array.from({ length: imageCount }, (_, i) => tiff.getImage(i))
       )
-      // Detect band ordering and nodata from the full-resolution image metadata
-      const rgbSamples  = detectRGBSamples(images[0])
-      const nodataValue = detectNodata(images[0])
+      // Detect band ordering and nodata from the full-resolution image metadata.
+      // getGDALMetadata is async (lazy range request); getGDALNoData is sync (eager tag).
+      const rgbSamples  = await detectRGBSamples(images[0])
+      const nodataValue = images[0].getGDALNoData() ?? 0
       return { tiff, imageCount, images, rgbSamples, nodataValue }
     } catch (e) {
       console.warn('[cog] open failed:', cogUrl, e?.message)
