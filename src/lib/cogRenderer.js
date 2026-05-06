@@ -55,10 +55,14 @@ async function detectRGBSamples(image) {
     const n = image.getSamplesPerPixel()
     if (n >= 3 && image.fileDirectory.hasTag('GDAL_METADATA')) {
       const interps = []
-      // getGDALMetadata(i) returns e.g. { ColorInterp: 'Blue', DESCRIPTION: 'Blue' }
+      // getGDALMetadata(i) returns { [name]: value } where name is the literal
+      // XML attribute — GDAL writes 'COLORINTERP' (all-caps), some tools write
+      // 'ColorInterp' or 'colorinterp'. Use a case-insensitive key search.
       for (let i = 0; i < Math.min(n, 6); i++) {
         const meta = await image.getGDALMetadata(i)
-        interps.push(meta?.ColorInterp?.toLowerCase() ?? '')
+        if (!meta) { interps.push(''); continue }
+        const entry = Object.entries(meta).find(([k]) => k.toLowerCase() === 'colorinterp')
+        interps.push(typeof entry?.[1] === 'string' ? entry[1].toLowerCase() : '')
       }
       const rI = interps.findIndex(v => v === 'red')
       const gI = interps.findIndex(v => v === 'green')
