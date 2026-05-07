@@ -239,14 +239,33 @@
   margin-top: auto;
 }
 
+.dsAddButtons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .dsAddBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 12px;
   font-weight: 600;
-  color: var(--cyan);
-  padding: 8px 0;
-  transition: opacity .15s;
+  color: var(--ink-soft);
+  padding: 7px 12px;
+  border-radius: 7px;
+  border: 1.5px solid var(--border);
+  background: var(--white);
+  transition: border-color .15s, color .15s, background .15s;
+  flex: 1;
+  justify-content: center;
 }
-.dsAddBtn:hover { opacity: .75; }
+.dsAddBtn:hover:not(:disabled) {
+  border-color: var(--cyan);
+  color: var(--ink);
+  background: rgba(0,200,215,.06);
+}
+.dsAddBtn:disabled { opacity: .45; cursor: default; }
 
 .dsAddForm {
   display: flex;

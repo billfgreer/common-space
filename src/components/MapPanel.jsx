@@ -555,8 +555,8 @@ export default function MapPanel({
 
   // ── Shared: add a parsed GeoJSON layer ───────────────────────────────────
   // Delegates to parent's onAddDataset; map sync happens in the useEffect above.
-  const addLayer = useCallback((name, geojson, color) => {
-    onAddDataset?.(name, geojson, color)
+  const addLayer = useCallback((name, geojson, color, sourceUrl) => {
+    onAddDataset?.(name, geojson, color, sourceUrl)
   }, [onAddDataset])
 
   // ── PMTiles file upload ───────────────────────────────────────────────────

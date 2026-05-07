@@ -5,6 +5,7 @@ import ResultsPanel from './ResultsPanel.jsx'
 import { streamEventItems } from '../lib/stac.js'
 import { fetchHDXResource, fetchUSGSShakeMap, formatToExt } from '../lib/hdx.js'
 import { parseVectorFiles } from '../lib/vectorParse.js'
+import { loadEventDatasets, saveEventDatasets } from '../lib/datasetStorage.js'
 import styles from './Results.module.css'
 
 // How often (ms) to flush the item buffer to React state.
@@ -29,27 +30,32 @@ export default function Results({ event, onBack, onHome, onCompare }) {
   const flushRef    = useRef(null)
 
   // ── Dataset state (lifted here so both panels can share it) ─────────────────
-  const [datasets, setDatasets]             = useState([])
+  const [datasets, setDatasets]             = useState(() => loadEventDatasets(event?.id))
   const [hdxLayerLoading, setHdxLayerLoading] = useState({})
   const [hdxLayerErrors,  setHdxLayerErrors]  = useState({})
   const datasetsRef = useRef([])
   useEffect(() => { datasetsRef.current = datasets }, [datasets])
 
-  // Reset datasets when event changes
+  // Persist datasets to localStorage whenever they change
   useEffect(() => {
-    setDatasets([])
+    saveEventDatasets(event?.id, datasets)
+  }, [event?.id, datasets])
+
+  // Reset datasets when event changes (load from storage for new event)
+  useEffect(() => {
+    setDatasets(loadEventDatasets(event?.id))
     setHdxLayerLoading({})
     setHdxLayerErrors({})
   }, [event?.id])
 
-  const addDataset = useCallback((name, geojson, color) => {
+  const addDataset = useCallback((name, geojson, color, sourceUrl = null) => {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`
     setDatasets(prev => {
       const c = color ?? UPLOAD_COLORS[prev.length % UPLOAD_COLORS.length]
       return [...prev, {
         id, name, color: c, visible: true,
         featureCount: geojson?.features?.length ?? 0,
-        geojson,
+        geojson, sourceUrl,
       }]
     })
   }, [])
@@ -90,7 +96,7 @@ export default function Results({ event, onBack, onHome, onCompare }) {
         const result = await parseVectorFiles([file])
         geojson = result.geojson
       }
-      addDataset(hdxLayer.name, geojson)
+      addDataset(hdxLayer.name, geojson, undefined, hdxLayer.url)
     } catch (e) {
       setHdxLayerErrors(prev => ({ ...prev, [key]: e.message }))
     } finally {

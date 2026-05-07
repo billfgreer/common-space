@@ -64,18 +64,46 @@ function DatasetsTab({
   onAddDataset, onRemoveDataset, onToggleDataset, onChangeDatasetColor,
   hdxLayerLoading, hdxLayerErrors, onLoadHdxLayer,
 }) {
+  const [addMode, setAddMode]       = useState(null)  // null | 'url' | 'file'
   const [urlInput, setUrlInput]     = useState('')
   const [urlName, setUrlName]       = useState('')
-  const [urlLoading, setUrlLoading] = useState(false)
-  const [urlError, setUrlError]     = useState(null)
-  const [showAddForm, setShowAddForm] = useState(false)
-  const urlInputRef = useRef(null)
+  const [busy, setBusy]             = useState(false)
+  const [addError, setAddError]     = useState(null)
+  const fileInputRef = useRef(null)
+  const urlInputRef  = useRef(null)
+
+  function openAdd(mode) {
+    setAddMode(mode)
+    setAddError(null)
+    if (mode === 'file') {
+      fileInputRef.current?.click()
+      setAddMode(null)
+    } else {
+      setTimeout(() => urlInputRef.current?.focus(), 50)
+    }
+  }
+
+  function closeAdd() { setAddMode(null); setUrlInput(''); setUrlName(''); setAddError(null) }
+
+  async function handleFiles(files) {
+    if (!files?.length) return
+    setBusy(true)
+    setAddError(null)
+    try {
+      const result = await parseVectorFiles(Array.from(files))
+      onAddDataset(result.name, result.geojson)
+    } catch (e) {
+      setAddError(e.message || 'Could not parse file')
+    } finally {
+      setBusy(false)
+    }
+  }
 
   async function handleAddUrl() {
     const url = urlInput.trim()
     if (!url) return
-    setUrlLoading(true)
-    setUrlError(null)
+    setBusy(true)
+    setAddError(null)
     try {
       const resp = await fetch(url)
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
@@ -84,14 +112,12 @@ function DatasetsTab({
       const name = urlName.trim() || url.split('/').pop().split('?')[0] || 'Dataset'
       const file = new File([blob], `${name}.${ext}`, { type: blob.type })
       const result = await parseVectorFiles([file])
-      onAddDataset(name, result.geojson)
-      setUrlInput('')
-      setUrlName('')
-      setShowAddForm(false)
+      onAddDataset(name, result.geojson, undefined, url)
+      closeAdd()
     } catch (e) {
-      setUrlError(e.message || 'Failed to load URL')
+      setAddError(e.message || 'Failed to load URL')
     } finally {
-      setUrlLoading(false)
+      setBusy(false)
     }
   }
 
@@ -117,11 +143,11 @@ function DatasetsTab({
         <div className={styles.dsSection}>
           <div className={styles.dsSectionLabel}>Event Datasets</div>
           {hdxLayers.map(hdxLayer => {
-            const key      = hdxLayer.url
-            const isLoaded = datasets.some(d => d.name === hdxLayer.name)
+            const key       = hdxLayer.url
+            const isLoaded  = datasets.some(d => d.name === hdxLayer.name)
             const isLoading = hdxLayerLoading[key]
-            const err      = hdxLayerErrors[key]
-            const meta     = TYPE_META[hdxLayer.type] || { label: hdxLayer.type, color: '#6b7280' }
+            const err       = hdxLayerErrors[key]
+            const meta      = TYPE_META[hdxLayer.type] || { label: hdxLayer.type, color: '#6b7280' }
             return (
               <div key={key} className={styles.dsEventRow}>
                 <span
@@ -162,7 +188,6 @@ function DatasetsTab({
           <div className={styles.dsLayerList}>
             {datasets.map(ds => (
               <div key={ds.id} className={`${styles.dsLayerRow} ${!ds.visible ? styles.dsLayerRowHidden : ''}`}>
-                {/* Color swatch / picker */}
                 <label className={styles.dsColorSwatch} style={{ background: ds.color }} title="Change color">
                   <input
                     type="color"
@@ -176,6 +201,7 @@ function DatasetsTab({
                   <span className={styles.dsLayerName}>{ds.name}</span>
                   <span className={styles.dsLayerCount}>
                     {ds.featureCount !== undefined ? `${ds.featureCount} features` : ''}
+                    {ds.sourceUrl ? ` · from URL` : ''}
                   </span>
                 </div>
 
@@ -206,44 +232,66 @@ function DatasetsTab({
         </div>
       )}
 
-      {/* ── Add dataset form ── */}
+      {/* ── Add dataset ── */}
       <div className={styles.dsAddSection}>
-        {!showAddForm ? (
-          <button className={styles.dsAddBtn} onClick={() => { setShowAddForm(true); setTimeout(() => urlInputRef.current?.focus(), 50) }}>
-            + Add dataset from URL
-          </button>
-        ) : (
+        {addMode === 'url' ? (
           <div className={styles.dsAddForm}>
-            <div className={styles.dsSectionLabel}>Add Dataset</div>
+            <div className={styles.dsSectionLabel}>Add from URL</div>
             <input
               ref={urlInputRef}
               className={styles.dsInput}
-              placeholder="Name (optional)"
+              placeholder="Dataset name (optional)"
               value={urlName}
               onChange={e => setUrlName(e.target.value)}
             />
             <input
               className={styles.dsInput}
-              placeholder="URL — GeoJSON, KML, or similar"
+              placeholder="URL — GeoJSON, KML, Shapefile zip…"
               value={urlInput}
               onChange={e => setUrlInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleAddUrl()}
             />
-            {urlError && <div className={styles.dsErr}>{urlError}</div>}
+            {addError && <div className={styles.dsErr}>{addError}</div>}
             <div className={styles.dsAddActions}>
-              <button className={styles.dsCancelBtn} onClick={() => { setShowAddForm(false); setUrlError(null) }}>
-                Cancel
-              </button>
+              <button className={styles.dsCancelBtn} onClick={closeAdd}>Cancel</button>
               <button
                 className={styles.dsSubmitBtn}
                 onClick={handleAddUrl}
-                disabled={urlLoading || !urlInput.trim()}
+                disabled={busy || !urlInput.trim()}
               >
-                {urlLoading ? 'Loading…' : 'Add to Map'}
+                {busy ? 'Loading…' : 'Add to Map'}
               </button>
             </div>
           </div>
+        ) : (
+          <div className={styles.dsAddButtons}>
+            <button className={styles.dsAddBtn} onClick={() => openAdd('url')} disabled={busy}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+              </svg>
+              Add from URL
+            </button>
+            <button className={styles.dsAddBtn} onClick={() => openAdd('file')} disabled={busy}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+              {busy ? 'Parsing…' : 'Add from File'}
+            </button>
+            {addError && <div className={styles.dsErr}>{addError}</div>}
+          </div>
         )}
+
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept=".geojson,.json,.fgb,.kml,.gpx,.shp,.dbf,.prj,.zip"
+          style={{ display: 'none' }}
+          onChange={e => { handleFiles(e.target.files); e.target.value = '' }}
+        />
       </div>
 
       {/* Empty state */}
@@ -252,7 +300,7 @@ function DatasetsTab({
           <div className={styles.dsEmptyIcon}>📂</div>
           <div className={styles.dsEmptyTitle}>No datasets yet</div>
           <div className={styles.dsEmptyText}>
-            Add a URL above, or use the HDX / GDACS buttons on the map to discover datasets for this event.
+            Add a file or URL above, or use the HDX / GDACS buttons on the map to discover datasets for this event.
           </div>
         </div>
       )}
