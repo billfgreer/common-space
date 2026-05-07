@@ -2,8 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { Protocol, PMTiles } from 'pmtiles'
-import { cogThumbnailTileUrl } from '../lib/titiler.js'
-import { cogTileUrlTemplate, cogProtocolHandler } from '../lib/cogRenderer.js'
+import { cogTileUrl, cogThumbnailTileUrl } from '../lib/titiler.js'
 import { parseVectorFiles } from '../lib/vectorParse.js'
 import { fetchHDXResource, fetchUSGSShakeMap, formatToExt } from '../lib/hdx.js'
 import { fetchOSMLayer, OSM_LAYERS } from '../lib/osm.js'
@@ -20,17 +19,14 @@ import styles from './MapPanel.module.css'
 // local File objects uploaded by the user.
 const pmtilesProtocol = new Protocol()
 maplibregl.addProtocol('pmtiles', pmtilesProtocol.tile.bind(pmtilesProtocol))
-maplibregl.addProtocol('cog', cogProtocolHandler)
 
 const SOURCE_ID = 'footprints'
 
-// Returns cogTileUrlTemplate options appropriate for the item's sensor type.
-// Optical imagery omits bidx so cogRenderer auto-detects the correct RGB band
-// order from GDAL metadata — handles BGRN, RGBN, and RGB storage layouts.
-// SAR imagery (Umbra, etc.) is single-band floating-point — explicit bidx required.
+// Returns cogTileUrl options appropriate for the item's sensor type.
+// SAR imagery (Umbra, etc.) is single-band floating-point — needs bidx=1 + grayscale colormap.
 function cogOpts(item) {
-  if (item?.isSAR) return { bidx: [1], rescale: '0,1500', isSAR: true }
-  return {}   // optical: auto-detect band order from GDAL metadata in cogRenderer
+  if (item?.isSAR) return { bidx: [1], rescale: '0,1500', colormapName: 'greys_r' }
+  return {}
 }
 
 // Colour palette for successive uploaded layers
@@ -372,7 +368,7 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
         const anchor = map.getLayer('after-cog-layer') ? 'after-cog-layer'
                      : map.getLayer('fp-fill')         ? 'fp-fill' : undefined
         map.addSource('cog-before', {
-          type: 'raster', tiles: [cogTileUrlTemplate(item.cogUrl, item.bbox, cogOpts(item))], tileSize: 256,
+          type: 'raster', tiles: [cogTileUrl(item.cogUrl, cogOpts(item))], tileSize: 256,
           ...(item.bbox?.length === 4 ? { bounds: item.bbox } : {}),
         })
         map.addLayer({ id: 'before-cog-layer', type: 'raster', source: 'cog-before',
@@ -396,7 +392,7 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
       try {
         const anchor = map.getLayer('fp-fill') ? 'fp-fill' : undefined
         map.addSource('cog-after', {
-          type: 'raster', tiles: [cogTileUrlTemplate(item.cogUrl, item.bbox, cogOpts(item))], tileSize: 256,
+          type: 'raster', tiles: [cogTileUrl(item.cogUrl, cogOpts(item))], tileSize: 256,
           ...(item.bbox?.length === 4 ? { bounds: item.bbox } : {}),
         })
         map.addLayer({ id: 'after-cog-layer', type: 'raster', source: 'cog-after',
@@ -437,7 +433,7 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
         try {
           const anchor = map.getLayer('fp-line') ? 'fp-line' : map.getLayer('fp-fill') ? 'fp-fill' : undefined
           map.addSource('cog-preview', {
-            type: 'raster', tiles: [cogTileUrlTemplate(item.cogUrl, item.bbox, cogOpts(item))], tileSize: 256,
+            type: 'raster', tiles: [cogTileUrl(item.cogUrl, cogOpts(item))], tileSize: 256,
             ...(item.bbox?.length === 4 ? { bounds: item.bbox } : {}),
           })
           map.addLayer({ id: 'preview-cog-layer', type: 'raster', source: 'cog-preview',
