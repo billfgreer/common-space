@@ -43,6 +43,7 @@ export const EVENT_TYPES = [
   { type: 'Landslide',  emoji: '⛰',  label: 'Landslide'  },
   { type: 'Drought',    emoji: '☀️', label: 'Drought'    },
   { type: 'Tsunami',    emoji: '🌊', label: 'Tsunami'    },
+  { type: 'Conflict',   emoji: '⚔️', label: 'Conflict'   },
   { type: 'Other',      emoji: '📍', label: 'Other'      },
 ]
 
@@ -57,6 +58,7 @@ const GRADIENTS = {
   Landslide:  'linear-gradient(140deg,#4A6B3A,#6A8B5A,#5A7B4A,#3A5B2A)',
   Drought:    'linear-gradient(155deg,#8B7A3A,#A09040,#C0AA60,#6A7A4A)',
   Tsunami:    'linear-gradient(150deg,#2D5A8E,#1E4A8A,#4A8AAD,#6AAAD0)',
+  Conflict:   'linear-gradient(145deg,#4A2020,#6A2A2A,#8A3A3A,#5A1A1A)',
   Other:      'linear-gradient(145deg,#4A5A6A,#6A7A8A,#5A6A7A,#3A4A5A)',
 }
 
