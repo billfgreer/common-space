@@ -3,12 +3,18 @@ import Header from './Header.jsx'
 import MapPanel from './MapPanel.jsx'
 import ResultsPanel from './ResultsPanel.jsx'
 import { streamEventItems } from '../lib/stac.js'
+import { fetchHDXResource, fetchUSGSShakeMap, formatToExt } from '../lib/hdx.js'
+import { parseVectorFiles } from '../lib/vectorParse.js'
 import styles from './Results.module.css'
 
 // How often (ms) to flush the item buffer to React state.
-// Batching avoids an O(n) re-render for every single STAC item streamed —
-// 500 items → ~25 flushes instead of 500 individual state updates.
 const FLUSH_INTERVAL_MS = 80
+
+// Colour palette for successive loaded layers
+const UPLOAD_COLORS = [
+  '#e74c3c', '#3498db', '#2ecc71', '#f39c12',
+  '#9b59b6', '#1abc9c', '#e67e22', '#e91e63',
+]
 
 export default function Results({ event, onBack, onHome, onCompare }) {
   const [items, setItems]         = useState([])
@@ -19,13 +25,83 @@ export default function Results({ event, onBack, onHome, onCompare }) {
   const previewItem = previewRequest?.item ?? null
 
   const abortRef    = useRef(null)
-  const bufferRef   = useRef([])    // Holds items between flush intervals
-  const flushRef    = useRef(null)  // setInterval handle
+  const bufferRef   = useRef([])
+  const flushRef    = useRef(null)
 
-  // Flush buffered items to React state in one batch
+  // ── Dataset state (lifted here so both panels can share it) ─────────────────
+  const [datasets, setDatasets]             = useState([])
+  const [hdxLayerLoading, setHdxLayerLoading] = useState({})
+  const [hdxLayerErrors,  setHdxLayerErrors]  = useState({})
+  const datasetsRef = useRef([])
+  useEffect(() => { datasetsRef.current = datasets }, [datasets])
+
+  // Reset datasets when event changes
+  useEffect(() => {
+    setDatasets([])
+    setHdxLayerLoading({})
+    setHdxLayerErrors({})
+  }, [event?.id])
+
+  const addDataset = useCallback((name, geojson, color) => {
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`
+    setDatasets(prev => {
+      const c = color ?? UPLOAD_COLORS[prev.length % UPLOAD_COLORS.length]
+      return [...prev, {
+        id, name, color: c, visible: true,
+        featureCount: geojson?.features?.length ?? 0,
+        geojson,
+      }]
+    })
+  }, [])
+
+  const removeDataset = useCallback((id) => {
+    setDatasets(prev => prev.filter(d => d.id !== id))
+  }, [])
+
+  const toggleDataset = useCallback((id) => {
+    setDatasets(prev => prev.map(d => d.id === id ? { ...d, visible: !d.visible } : d))
+  }, [])
+
+  const changeDatasetColor = useCallback((id, color) => {
+    setDatasets(prev => prev.map(d => d.id === id ? { ...d, color } : d))
+  }, [])
+
+  // Load an HDX / curated event data layer. Shared between map panel and side panel.
+  const loadHdxLayer = useCallback(async (hdxLayer) => {
+    const key = hdxLayer.url
+    // Skip if already loaded
+    if (datasetsRef.current.some(d => d.name === hdxLayer.name)) return
+    setHdxLayerLoading(prev => ({ ...prev, [key]: true }))
+    setHdxLayerErrors(prev => ({ ...prev, [key]: null }))
+    try {
+      let geojson
+      if (hdxLayer.urlType === 'usgs-shakemap') {
+        geojson = await fetchUSGSShakeMap(hdxLayer.url)
+      } else if (hdxLayer.urlType === 'direct') {
+        const blob = await fetchHDXResource(hdxLayer.url)
+        const ext  = formatToExt(hdxLayer.format)
+        const file = new File([blob], `${hdxLayer.name}.${ext}`, { type: blob.type })
+        const result = await parseVectorFiles([file])
+        geojson = result.geojson
+      } else {
+        const blob = await fetchHDXResource(hdxLayer.url)
+        const ext  = formatToExt(hdxLayer.format)
+        const file = new File([blob], `${hdxLayer.name}.${ext}`, { type: blob.type })
+        const result = await parseVectorFiles([file])
+        geojson = result.geojson
+      }
+      addDataset(hdxLayer.name, geojson)
+    } catch (e) {
+      setHdxLayerErrors(prev => ({ ...prev, [key]: e.message }))
+    } finally {
+      setHdxLayerLoading(prev => ({ ...prev, [key]: false }))
+    }
+  }, [addDataset])
+
+  // ── Flush buffered items to React state in one batch ────────────────────────
   const flush = useCallback(() => {
     if (!bufferRef.current.length) return
-    const batch = bufferRef.current.splice(0)   // Drain buffer atomically
+    const batch = bufferRef.current.splice(0)
     setItems(prev => [...prev, ...batch])
   }, [])
 
@@ -33,20 +109,16 @@ export default function Results({ event, onBack, onHome, onCompare }) {
   useEffect(() => {
     if (!event?.catalogUrl) return
 
-    // Abort any in-flight fetch for a previous event
     abortRef.current?.abort()
     const controller = new AbortController()
     abortRef.current = controller
 
-    // Reset state
     setItems([])
     setLoading(true)
     setSelected({ before: null, after: null })
     setPreviewRequest(null)
     bufferRef.current = []
 
-    // Start periodic flush — items stream in asynchronously so we batch them
-    // rather than triggering a React render for each individual arrival.
     clearInterval(flushRef.current)
     flushRef.current = setInterval(flush, FLUSH_INTERVAL_MS)
 
@@ -61,7 +133,7 @@ export default function Results({ event, onBack, onHome, onCompare }) {
       if (!controller.signal.aborted) {
         clearInterval(flushRef.current)
         flushRef.current = null
-        flush()           // Final flush — emit any remaining buffered items
+        flush()
         setLoading(false)
       }
     })
@@ -111,6 +183,14 @@ export default function Results({ event, onBack, onHome, onCompare }) {
           previewRequest={previewRequest}
           onItemClick={handlePreview}
           onSelectPair={handleSelectPair}
+          datasets={datasets}
+          onAddDataset={addDataset}
+          onRemoveDataset={removeDataset}
+          onToggleDataset={toggleDataset}
+          onChangeDatasetColor={changeDatasetColor}
+          hdxLayerLoading={hdxLayerLoading}
+          hdxLayerErrors={hdxLayerErrors}
+          onLoadHdxLayer={loadHdxLayer}
         />
         <ResultsPanel
           items={items}
@@ -123,6 +203,14 @@ export default function Results({ event, onBack, onHome, onCompare }) {
           onHoverEnter={item => setHoveredId(item.id)}
           onHoverLeave={() => setHoveredId(null)}
           onCompare={handleCompare}
+          datasets={datasets}
+          onAddDataset={addDataset}
+          onRemoveDataset={removeDataset}
+          onToggleDataset={toggleDataset}
+          onChangeDatasetColor={changeDatasetColor}
+          hdxLayerLoading={hdxLayerLoading}
+          hdxLayerErrors={hdxLayerErrors}
+          onLoadHdxLayer={loadHdxLayer}
         />
       </div>
     </div>

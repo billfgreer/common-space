@@ -4,6 +4,12 @@ import { esriTileUrl, shortDate, impactScore, topStat, fmtNum, fmtCost, formatDa
 import Header from './Header.jsx'
 import styles from './Landing.module.css'
 
+const PlusIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+  </svg>
+)
+
 // ─── Category map ─────────────────────────────────────────────────────────────
 
 const TYPE_CATS = {
@@ -164,6 +170,51 @@ function FeaturedBanner({ event, onClick }) {
   )
 }
 
+// ─── Custom event card (user-created) ─────────────────────────────────────────
+function CustomEventCard({ event, onClick, onDelete }) {
+  return (
+    <button className={styles.card} onClick={onClick} style={{ position: 'relative' }}>
+      <div className={styles.thumb} style={{ background: event.thumbGradient }}>
+        <span className={`${styles.typeBadge}`} style={{ background: 'rgba(0,200,215,.85)', color: '#111' }}>
+          {event.emoji} {event.type}
+        </span>
+        <span style={{
+          position: 'absolute', top: 8, right: 8,
+          background: 'rgba(0,200,215,.9)', color: '#111',
+          fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 4,
+          letterSpacing: '.4px', textTransform: 'uppercase',
+        }}>
+          My Event
+        </span>
+      </div>
+      <div className={styles.body}>
+        <div className={styles.cardName}>{event.name}</div>
+        <div className={styles.cardMeta}>
+          <span className={styles.cardLocation}>{event.location}</span>
+          <span className={styles.cardDate}>{event.eventDate ? shortDate(event.eventDate) : '—'}</span>
+        </div>
+        {event.catalogUrl && (
+          <div className={styles.dataRow}>
+            <span className={styles.dataPill} style={{ background: 'rgba(10,175,184,.1)', color: '#0AAFB8', border: '1px solid rgba(10,175,184,.28)' }}>
+              🛰 Imagery linked
+            </span>
+          </div>
+        )}
+        <button
+          style={{
+            marginTop: 8, fontSize: 11, fontWeight: 600, color: '#ef4444',
+            padding: '4px 0', background: 'none', border: 'none', cursor: 'pointer',
+            textAlign: 'left',
+          }}
+          onClick={e => { e.stopPropagation(); onDelete(event.id) }}
+        >
+          Delete event
+        </button>
+      </div>
+    </button>
+  )
+}
+
 // ─── Event card ───────────────────────────────────────────────────────────────
 function EventCard({ event, onClick }) {
   const provider  = getProvider(event)
@@ -248,27 +299,33 @@ function EventCard({ event, onClick }) {
 }
 
 // ─── Landing ──────────────────────────────────────────────────────────────────
-export default function Landing({ onSelectEvent }) {
+export default function Landing({ allEvents, onSelectEvent, onCreateEvent, onDeleteCustom }) {
   const [query,    setQuery]    = useState('')
   const [filter,   setFilter]   = useState('all')
   const [provider, setProvider] = useState('all')
   const [sort,     setSort]     = useState('recent')
 
-  // Pre-compute the featured event once — changes only when EVENTS changes
+  // Use merged allEvents (custom + static); fall back to static EVENTS
+  const sourceEvents = allEvents ?? EVENTS
+
+  // Pre-compute the featured event from static events only
   const featuredEvent = useMemo(() => getFeaturedEvent(), [])
+
+  // Separate custom events from static
+  const customEvents  = useMemo(() => sourceEvents.filter(e => e.isCustom), [sourceEvents])
+  const staticEvents  = useMemo(() => sourceEvents.filter(e => !e.isCustom), [sourceEvents])
 
   const baseEvents = useMemo(() => {
     const isArchive = e => ARCHIVE_SOURCES.has(e.source) || e.type === 'Archive'
-    const disasters = EVENTS.filter(e => !isArchive(e))
-    const archives  = EVENTS.filter(e => isArchive(e))
-    // Sort disasters only — archives pin to bottom
+    const disasters = staticEvents.filter(e => !isArchive(e))
+    const archives  = staticEvents.filter(e => isArchive(e))
     const sorted = [...disasters].sort((a, b) => {
       if (sort === 'impact') return impactScore(b) - impactScore(a)
       if (sort === 'cost')   return (b.impact?.costUSD ?? 0) - (a.impact?.costUSD ?? 0)
-      return new Date(b.eventDate) - new Date(a.eventDate)  // recent
+      return new Date(b.eventDate) - new Date(a.eventDate)
     })
     return [...sorted, ...archives]
-  }, [sort])
+  }, [staticEvents, sort])
 
   const visible = useMemo(() => baseEvents.filter(e => {
     const matchCat      = filter === 'all' || getCategory(e) === filter
@@ -278,12 +335,9 @@ export default function Landing({ onSelectEvent }) {
     return matchCat && matchProvider && matchQ
   }), [baseEvents, filter, provider, query])
 
-  // Summary counts for the toolbar
   const totalEvents    = EVENTS.filter(e => !(ARCHIVE_SOURCES.has(e.source) || e.type === 'Archive')).length
-  const totalDeaths    = useMemo(() =>
-    EVENTS.reduce((s, e) => s + (e.impact?.deaths ?? 0), 0), [])
-  const totalDisplaced = useMemo(() =>
-    EVENTS.reduce((s, e) => s + (e.impact?.displaced ?? 0), 0), [])
+  const totalDeaths    = useMemo(() => EVENTS.reduce((s, e) => s + (e.impact?.deaths ?? 0), 0), [])
+  const totalDisplaced = useMemo(() => EVENTS.reduce((s, e) => s + (e.impact?.displaced ?? 0), 0), [])
 
   return (
     <div className={styles.screen}>
@@ -302,17 +356,34 @@ export default function Landing({ onSelectEvent }) {
               <span>{fmtNum(totalDisplaced)} displaced</span>
             </div>
           </div>
-          <div className={styles.heroSearch}>
-            <span className={styles.searchIcon}><SearchIcon /></span>
-            <input
-              className={styles.searchInput}
-              type="text"
-              placeholder="Search events or locations…"
-              value={query}
-              onChange={e => { setQuery(e.target.value); setFilter('all') }}
-              autoComplete="off"
-            />
-            {query && <button className={styles.clearBtn} onClick={() => setQuery('')}>✕</button>}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div className={styles.heroSearch}>
+              <span className={styles.searchIcon}><SearchIcon /></span>
+              <input
+                className={styles.searchInput}
+                type="text"
+                placeholder="Search events or locations…"
+                value={query}
+                onChange={e => { setQuery(e.target.value); setFilter('all') }}
+                autoComplete="off"
+              />
+              {query && <button className={styles.clearBtn} onClick={() => setQuery('')}>✕</button>}
+            </div>
+            {onCreateEvent && (
+              <button
+                onClick={onCreateEvent}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  background: 'var(--cyan)', color: 'var(--ink)',
+                  fontWeight: 700, fontSize: 13,
+                  padding: '9px 16px', borderRadius: 8,
+                  border: 'none', cursor: 'pointer', flexShrink: 0,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <PlusIcon /> New Event
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -378,16 +449,44 @@ export default function Landing({ onSelectEvent }) {
         </div>
       )}
 
+      {/* ── Custom events section ── */}
+      {customEvents.length > 0 && !query && filter === 'all' && provider === 'all' && (
+        <div className={styles.gridWrap} style={{ paddingBottom: 0 }}>
+          <div className={styles.sectionHeader}>
+            <span className={styles.sectionTitle}>My Events</span>
+            <span className={styles.sectionCount}>{customEvents.length}</span>
+          </div>
+          <div className={styles.grid}>
+            {customEvents.map(event => (
+              <CustomEventCard
+                key={event.id}
+                event={event}
+                onClick={() => onSelectEvent(event)}
+                onDelete={onDeleteCustom}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* ── Event grid ── */}
       <div className={styles.gridWrap}>
         {visible.length === 0 ? (
           <div className={styles.empty}>No events match "{query || filter}"</div>
         ) : (
-          <div className={styles.grid}>
-            {visible.map(event => (
-              <EventCard key={event.id} event={event} onClick={() => onSelectEvent(event)} />
-            ))}
-          </div>
+          <>
+            {customEvents.length > 0 && !query && filter === 'all' && provider === 'all' && (
+              <div className={styles.sectionHeader}>
+                <span className={styles.sectionTitle}>All Events</span>
+                <span className={styles.sectionCount}>{visible.length}</span>
+              </div>
+            )}
+            <div className={styles.grid}>
+              {visible.map(event => (
+                <EventCard key={event.id} event={event} onClick={() => onSelectEvent(event)} />
+              ))}
+            </div>
+          </>
         )}
       </div>
     </div>

@@ -1,14 +1,14 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useState, useCallback } from 'react'
 import { HashRouter, Routes, Route, useParams, useNavigate, Navigate } from 'react-router-dom'
 import Landing from './components/Landing.jsx'
 import { EVENTS } from './lib/events.js'
+import { loadCustomEvents, saveCustomEvent, deleteCustomEvent } from './lib/customEvents.js'
 
 // Lazy-load heavy routes — MapLibre + geo parsers only load when actually needed.
-// Landing is eager because it's the entry point and has no heavy dependencies.
-const Results = lazy(() => import('./components/Results.jsx'))
-const Compare = lazy(() => import('./components/Compare.jsx'))
+const Results      = lazy(() => import('./components/Results.jsx'))
+const Compare      = lazy(() => import('./components/Compare.jsx'))
+const CreateEvent  = lazy(() => import('./components/CreateEvent.jsx'))
 
-// Minimal skeleton shown while the lazy chunk is fetching
 function RouteLoading() {
   return (
     <div style={{
@@ -22,15 +22,22 @@ function RouteLoading() {
 
 // ─── Route components ──────────────────────────────────────────────────────────
 
-function LandingRoute() {
+function LandingRoute({ allEvents, onDeleteCustom }) {
   const navigate = useNavigate()
-  return <Landing onSelectEvent={event => navigate(`/event/${event.id}`)} />
+  return (
+    <Landing
+      allEvents={allEvents}
+      onSelectEvent={event => navigate(`/event/${event.id}`)}
+      onCreateEvent={() => navigate('/create')}
+      onDeleteCustom={onDeleteCustom}
+    />
+  )
 }
 
-function ResultsRoute() {
+function ResultsRoute({ allEvents }) {
   const { eventId } = useParams()
   const navigate    = useNavigate()
-  const event       = EVENTS.find(e => e.id === eventId)
+  const event       = allEvents.find(e => e.id === eventId)
 
   if (!event) return <Navigate to="/" replace />
 
@@ -49,10 +56,10 @@ function ResultsRoute() {
   )
 }
 
-function CompareRoute() {
+function CompareRoute({ allEvents }) {
   const { eventId } = useParams()
   const navigate    = useNavigate()
-  const event       = EVENTS.find(e => e.id === eventId)
+  const event       = allEvents.find(e => e.id === eventId)
 
   if (!event) return <Navigate to="/" replace />
 
@@ -80,18 +87,55 @@ function CompareRoute() {
   )
 }
 
+function CreateRoute({ onCreated }) {
+  const navigate = useNavigate()
+  return (
+    <CreateEvent
+      onBack={() => navigate('/')}
+      onHome={() => navigate('/')}
+      onCreated={event => {
+        onCreated(event)
+        navigate(`/event/${event.id}`)
+      }}
+    />
+  )
+}
+
 // ─── App root ─────────────────────────────────────────────────────────────────
 
 export default function App() {
+  const [customEvents, setCustomEvents] = useState(() => loadCustomEvents())
+
+  const handleCreated = useCallback((event) => {
+    setCustomEvents(prev => [event, ...prev.filter(e => e.id !== event.id)])
+  }, [])
+
+  const handleDeleteCustom = useCallback((id) => {
+    deleteCustomEvent(id)
+    setCustomEvents(prev => prev.filter(e => e.id !== id))
+  }, [])
+
+  // Custom events first (most recent user-created), then static events
+  const allEvents = [...customEvents, ...EVENTS]
+
   return (
     <div style={{ height: '100%', overflow: 'hidden' }}>
       <HashRouter>
         <Suspense fallback={<RouteLoading />}>
           <Routes>
-            <Route path="/"                    element={<LandingRoute />} />
-            <Route path="/event/:eventId"      element={<ResultsRoute />} />
-            <Route path="/compare/:eventId"    element={<CompareRoute />} />
-            <Route path="*"                    element={<Navigate to="/" replace />} />
+            <Route path="/"
+              element={<LandingRoute allEvents={allEvents} onDeleteCustom={handleDeleteCustom} />}
+            />
+            <Route path="/create"
+              element={<CreateRoute onCreated={handleCreated} />}
+            />
+            <Route path="/event/:eventId"
+              element={<ResultsRoute allEvents={allEvents} />}
+            />
+            <Route path="/compare/:eventId"
+              element={<CompareRoute allEvents={allEvents} />}
+            />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
       </HashRouter>

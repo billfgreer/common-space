@@ -8,6 +8,326 @@
   overflow: hidden;
 }
 
+/* ─── Tab strip ──────────────────────────────────────────────────────────── */
+
+.tabStrip {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  background: var(--white);
+}
+
+.tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 11px 16px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  border-bottom: 2px solid transparent;
+  transition: color .15s, border-color .15s;
+  position: relative;
+  bottom: -1px;
+}
+.tab:hover { color: var(--ink); }
+.tabActive {
+  color: var(--ink);
+  border-bottom-color: var(--cyan);
+}
+
+.tabBadge {
+  font-size: 10px;
+  font-weight: 800;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 1px 6px;
+  color: var(--ink-soft);
+}
+.tabActive .tabBadge {
+  background: rgba(0,200,215,.12);
+  border-color: rgba(0,200,215,.3);
+  color: var(--cyan);
+}
+
+/* ─── Datasets tab ───────────────────────────────────────────────────────── */
+
+.datasetTab {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.datasetTab::-webkit-scrollbar { width: 4px; }
+.datasetTab::-webkit-scrollbar-track { background: transparent; }
+.datasetTab::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.dsSection {
+  padding: 14px 16px 0;
+}
+
+.dsSectionLabel {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.dsSectionCount {
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 1px 7px;
+}
+
+/* Event datasets (curated hdxLayers) */
+.dsEventRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.dsEventRow:last-child { border-bottom: none; }
+
+.dsTypeBadge {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .3px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid;
+  flex-shrink: 0;
+}
+
+.dsEventName {
+  flex: 1;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.dsLoaded {
+  font-size: 10px;
+  font-weight: 700;
+  color: #16a34a;
+  flex-shrink: 0;
+}
+
+.dsLoadBtn {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 5px;
+  border: 1.5px solid var(--cyan);
+  color: var(--cyan);
+  background: rgba(0,200,215,.06);
+  flex-shrink: 0;
+  transition: background .12s;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.dsLoadBtn:hover:not(:disabled) { background: rgba(0,200,215,.15); }
+.dsLoadBtn:disabled { opacity: .5; cursor: default; }
+.dsLoadBtnRetry { border-color: #f59e0b; color: #d97706; background: rgba(245,158,11,.06); }
+.dsLoadBtnRetry:hover:not(:disabled) { background: rgba(245,158,11,.15); }
+
+/* Active layer list */
+.dsLayerList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dsLayerRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  transition: border-color .15s;
+}
+.dsLayerRow:hover { border-color: rgba(0,200,215,.35); }
+.dsLayerRowHidden { opacity: .5; }
+
+.dsColorSwatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  cursor: pointer;
+  position: relative;
+  display: block;
+}
+
+.colorInput {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.dsLayerMeta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.dsLayerName {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dsLayerCount {
+  font-size: 10px;
+  color: var(--ink-soft);
+}
+
+.dsLayerActions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.dsActionBtn {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 5px;
+  color: var(--ink-soft);
+  font-size: 11px;
+  transition: background .12s, color .12s;
+}
+.dsActionBtn:hover { background: var(--border); color: var(--ink); }
+.dsRemoveBtn:hover { background: #fef2f2 !important; color: #dc2626 !important; }
+
+/* Add form */
+.dsAddSection {
+  padding: 14px 16px 0;
+  margin-top: auto;
+}
+
+.dsAddBtn {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--cyan);
+  padding: 8px 0;
+  transition: opacity .15s;
+}
+.dsAddBtn:hover { opacity: .75; }
+
+.dsAddForm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dsInput {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 7px;
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--white);
+  outline: none;
+  transition: border-color .15s;
+}
+.dsInput:focus { border-color: var(--cyan); }
+.dsInput::placeholder { color: var(--ink-soft); }
+
+.dsAddActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.dsCancelBtn {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  padding: 7px 14px;
+  border-radius: 6px;
+  transition: background .12s;
+}
+.dsCancelBtn:hover { background: var(--bg); color: var(--ink); }
+
+.dsSubmitBtn {
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--cyan);
+  color: var(--ink);
+  padding: 7px 16px;
+  border-radius: 6px;
+  transition: filter .12s;
+}
+.dsSubmitBtn:hover:not(:disabled) { filter: brightness(1.08); }
+.dsSubmitBtn:disabled { opacity: .45; cursor: default; }
+
+.dsErr {
+  font-size: 11px;
+  color: #dc2626;
+  padding: 4px 0;
+  width: 100%;
+}
+
+/* Empty state */
+.dsEmpty {
+  padding: 40px 24px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.dsEmptyIcon { font-size: 32px; line-height: 1; }
+.dsEmptyTitle { font-size: 13px; font-weight: 700; color: var(--ink); }
+.dsEmptyText { font-size: 12px; color: var(--ink-soft); line-height: 1.6; }
+
+/* Spinner */
+.spinnerXs {
+  display: inline-block;
+  width: 10px; height: 10px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin .6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
 /* ─── Toolbar ─────────────────────────────────────────────────────────────── */
 
 .toolbar {

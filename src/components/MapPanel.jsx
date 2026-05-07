@@ -4,7 +4,6 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 import { Protocol, PMTiles } from 'pmtiles'
 import { cogTileUrl, cogThumbnailTileUrl } from '../lib/titiler.js'
 import { parseVectorFiles } from '../lib/vectorParse.js'
-import { fetchHDXResource, fetchUSGSShakeMap, formatToExt } from '../lib/hdx.js'
 import { fetchOSMLayer, OSM_LAYERS } from '../lib/osm.js'
 import { MAPLIBRE_STYLE } from '../lib/constants.js'
 import { formatPlatform, shortDate } from '../lib/utils.js'
@@ -28,12 +27,6 @@ function cogOpts(item) {
   if (item?.isSAR) return { bidx: [1], rescale: '0,1500', colormapName: 'greys_r' }
   return {}
 }
-
-// Colour palette for successive uploaded layers
-const UPLOAD_COLORS = [
-  '#e74c3c', '#3498db', '#2ecc71', '#f39c12',
-  '#9b59b6', '#1abc9c', '#e67e22', '#e91e63',
-]
 
 // ─── Stack Picker ─────────────────────────────────────────────────────────────
 // Floating card anchored to a map click that lists every image stacked at that
@@ -172,7 +165,12 @@ const DownloadIcon = () => (
 
 // ─── MapPanel ─────────────────────────────────────────────────────────────────
 
-export default function MapPanel({ event, items, hoveredId, selectedItems, previewRequest, onItemClick, onSelectPair }) {
+export default function MapPanel({
+  event, items, hoveredId, selectedItems, previewRequest, onItemClick, onSelectPair,
+  // Dataset props (lifted to Results.jsx)
+  datasets = [], onAddDataset, onRemoveDataset, onToggleDataset, onChangeDatasetColor,
+  hdxLayerLoading = {}, hdxLayerErrors = {}, onLoadHdxLayer,
+}) {
   const containerRef       = useRef(null)
   const mapRef             = useRef(null)
   const initialised        = useRef(false)
@@ -181,6 +179,7 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
   const gdacsBtnRef        = useRef(null)
   const popupRef           = useRef(null)   // reusable MapLibre popup for feature info
   const cursorLayersRef    = useRef(new Set()) // tracks which upload src IDs have cursor handlers
+  const mountedLayersRef   = useRef(new Set()) // dataset IDs currently synced to MapLibre
 
   // Stable refs so map event handlers never capture stale props
   const itemsRef        = useRef(items)
@@ -197,8 +196,8 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
   const [showAfter,  setShowAfter]  = useState(true)
   const [showPreview, setShowPreview] = useState(true)
 
-  // Uploaded vector layers: [{ id, name, color, visible, featureCount }]
-  const [uploadedLayers, setUploadedLayers]   = useState([])
+  // PMTiles layers are managed internally (no GeoJSON, can't be lifted)
+  const [pmtilesLayers, setPmtilesLayers]     = useState([])
   const [uploadError, setUploadError]         = useState(null)
   const [uploading, setUploading]             = useState(false)
   const [isDragging, setIsDragging]           = useState(false)
@@ -206,13 +205,8 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
   const [hdxAnchorRect, setHDXAnchorRect] = useState(null)
   const [showGDACS, setShowGDACS]     = useState(false)
   const [gdacsAnchorRect, setGDACSAnchorRect] = useState(null)
-  const uploadedLayersRef = useRef([])
 
-  // Curated event data layer state: which are loading, which have errors
-  const [hdxLayerLoading, setHdxLayerLoading] = useState({}) // key -> true
-  const [hdxLayerErrors,  setHdxLayerErrors]  = useState({}) // key -> string
-
-  // OSM layer state
+  // OSM layer state (map-specific, stays internal)
   const [osmLoading, setOsmLoading] = useState({}) // layerId -> true
   const [osmErrors,  setOsmErrors]  = useState({}) // layerId -> string
 
@@ -220,13 +214,18 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
   const [exporting, setExporting]   = useState(false)
   const [exportErr, setExportErr]   = useState(null)
 
+  // Ref used in map click handler — needs all layers (GeoJSON + PMTiles)
+  const uploadedLayersRef = useRef([])
+  useEffect(() => {
+    uploadedLayersRef.current = [...datasets, ...pmtilesLayers]
+  }, [datasets, pmtilesLayers])
+
   useEffect(() => { itemsRef.current        = items        }, [items])
   useEffect(() => { eventRef.current        = event        }, [event])
   useEffect(() => { onItemClickRef.current  = onItemClick  }, [onItemClick])
   useEffect(() => { onSelectPairRef.current = onSelectPair }, [onSelectPair])
   useEffect(() => { showBeforeRef.current   = showBefore   }, [showBefore])
   useEffect(() => { showAfterRef.current    = showAfter    }, [showAfter])
-  useEffect(() => { uploadedLayersRef.current = uploadedLayers }, [uploadedLayers])
 
   // ── Init map once ─────────────────────────────────────────────────────────
   useEffect(() => {
@@ -469,97 +468,96 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
     else { map.once('load', fly) }
   }, [event?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Uploaded vector layers — sync to MapLibre ────────────────────────────
+  // ── Dataset layers — sync to MapLibre ────────────────────────────────────
+  // Handles add / remove / visibility toggle / color updates for all GeoJSON datasets.
+  // PMTiles layers are managed separately (no GeoJSON, added directly in handlePMTilesFile).
   useEffect(() => {
     const map = mapRef.current
     if (!map || !map.isStyleLoaded()) return
 
-    for (const layer of uploadedLayers) {
+    const currentIds = new Set(datasets.map(d => d.id))
+
+    // Remove MapLibre layers/sources for datasets that were deleted
+    for (const id of mountedLayersRef.current) {
+      if (!currentIds.has(id)) {
+        try { map.removeLayer(`upload-fill-${id}`)   } catch {}
+        try { map.removeLayer(`upload-line-${id}`)   } catch {}
+        try { map.removeLayer(`upload-circle-${id}`) } catch {}
+        try { map.removeSource(`upload-src-${id}`)   } catch {}
+        mountedLayersRef.current.delete(id)
+      }
+    }
+
+    // Add new layers / update existing
+    for (const layer of datasets) {
+      if (!layer.geojson) continue  // PMTiles entries have no GeoJSON
       const fillId   = `upload-fill-${layer.id}`
       const lineId   = `upload-line-${layer.id}`
       const circleId = `upload-circle-${layer.id}`
       const srcId    = `upload-src-${layer.id}`
       const vis      = layer.visible ? 'visible' : 'none'
 
-      // Source already added — just toggle visibility
       if (map.getSource(srcId)) {
-        // Standard GeoJSON layers
+        // Sync visibility + color for existing layer
         try { map.setLayoutProperty(fillId,   'visibility', vis) } catch {}
         try { map.setLayoutProperty(lineId,   'visibility', vis) } catch {}
         try { map.setLayoutProperty(circleId, 'visibility', vis) } catch {}
-        // PMTiles sub-layers (named upload-{fill|line|circle}-{id}-{sourceName})
-        const prefix = `upload-fill-${layer.id}-`
-        const lprefix = `upload-line-${layer.id}-`
-        const cprefix = `upload-circle-${layer.id}-`
-        const style = map.getStyle()
-        if (style?.layers) {
-          for (const sl of style.layers) {
-            if (sl.id.startsWith(prefix) || sl.id.startsWith(lprefix) || sl.id.startsWith(cprefix)) {
-              try { map.setLayoutProperty(sl.id, 'visibility', vis) } catch {}
+        try { map.setPaintProperty(fillId,   'fill-color',   layer.color) } catch {}
+        try { map.setPaintProperty(lineId,   'line-color',   layer.color) } catch {}
+        try { map.setPaintProperty(circleId, 'circle-color', layer.color) } catch {}
+      } else {
+        // New layer — add source + MapLibre layers
+        try {
+          map.addSource(srcId, { type: 'geojson', data: layer.geojson })
+          map.addLayer({
+            id: fillId, type: 'fill', source: srcId,
+            filter: ['==', ['geometry-type'], 'Polygon'],
+            layout: { visibility: vis },
+            paint: { 'fill-color': layer.color, 'fill-opacity': 0.2 },
+          })
+          map.addLayer({
+            id: lineId, type: 'line', source: srcId,
+            filter: ['any', ['==', ['geometry-type'], 'Polygon'], ['==', ['geometry-type'], 'LineString'],
+                            ['==', ['geometry-type'], 'MultiPolygon'], ['==', ['geometry-type'], 'MultiLineString']],
+            layout: { visibility: vis },
+            paint: { 'line-color': layer.color, 'line-width': 2, 'line-opacity': 0.9 },
+          })
+          map.addLayer({
+            id: circleId, type: 'circle', source: srcId,
+            filter: ['any', ['==', ['geometry-type'], 'Point'], ['==', ['geometry-type'], 'MultiPoint']],
+            layout: { visibility: vis },
+            paint: { 'circle-radius': 5, 'circle-color': layer.color, 'circle-stroke-width': 1.5, 'circle-stroke-color': '#fff' },
+          })
+
+          // Pointer cursor — registered once per source
+          if (!cursorLayersRef.current.has(srcId)) {
+            cursorLayersRef.current.add(srcId)
+            for (const lid of [fillId, lineId, circleId]) {
+              map.on('mouseenter', lid, () => { map.getCanvas().style.cursor = 'pointer' })
+              map.on('mouseleave', lid, () => { map.getCanvas().style.cursor = '' })
             }
           }
-        }
-        continue
-      }
 
-      // Add new source + layers
-      try {
-        map.addSource(srcId, { type: 'geojson', data: layer.geojson })
+          mountedLayersRef.current.add(layer.id)
 
-        map.addLayer({
-          id: fillId, type: 'fill', source: srcId,
-          filter: ['==', ['geometry-type'], 'Polygon'],
-          layout: { visibility: vis },
-          paint: { 'fill-color': layer.color, 'fill-opacity': 0.2 },
-        })
-        map.addLayer({
-          id: lineId, type: 'line', source: srcId,
-          filter: ['any', ['==', ['geometry-type'], 'Polygon'], ['==', ['geometry-type'], 'LineString'],
-                          ['==', ['geometry-type'], 'MultiPolygon'], ['==', ['geometry-type'], 'MultiLineString']],
-          layout: { visibility: vis },
-          paint: { 'line-color': layer.color, 'line-width': 2, 'line-opacity': 0.9 },
-        })
-        map.addLayer({
-          id: circleId, type: 'circle', source: srcId,
-          filter: ['any', ['==', ['geometry-type'], 'Point'], ['==', ['geometry-type'], 'MultiPoint']],
-          layout: { visibility: vis },
-          paint: { 'circle-radius': 5, 'circle-color': layer.color, 'circle-stroke-width': 1.5, 'circle-stroke-color': '#fff' },
-        })
-
-        // Pointer cursor on hover — registered once per source
-        if (!cursorLayersRef.current.has(srcId)) {
-          cursorLayersRef.current.add(srcId)
-          for (const lid of [fillId, lineId, circleId]) {
-            map.on('mouseenter', lid, () => { map.getCanvas().style.cursor = 'pointer' })
-            map.on('mouseleave', lid, () => { map.getCanvas().style.cursor = '' })
+          // Fly to bounds of the newly added layer
+          const coords = []
+          layer.geojson.features?.forEach(f => collectCoords(f.geometry, coords))
+          if (coords.length) {
+            const lngs = coords.map(c => c[0]), lats = coords.map(c => c[1])
+            const b = [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]]
+            try { map.fitBounds(b, { padding: 60, duration: 700, maxZoom: 16 }) } catch {}
           }
-        }
-      } catch (e) { console.warn('upload layer error:', e) }
-    }
-  }, [uploadedLayers])
-
-  // ── Shared: add a parsed GeoJSON layer to the map ────────────────────────
-  // color is optional — pass a hex string to override the auto palette
-  const addLayer = useCallback((name, geojson, color) => {
-    const map = mapRef.current
-    color = color ?? UPLOAD_COLORS[uploadedLayersRef.current.length % UPLOAD_COLORS.length]
-    const id  = `${Date.now()}-${Math.random().toString(36).slice(2)}`
-    const featureCount = geojson.features?.length ?? 0
-
-    if (map && featureCount > 0) {
-      const coords = []
-      geojson.features.forEach(f => collectCoords(f.geometry, coords))
-      if (coords.length) {
-        const lngs = coords.map(c => c[0]), lats = coords.map(c => c[1])
-        const b = [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]]
-        const apply = () => map.fitBounds(b, { padding: 60, duration: 700, maxZoom: 16 })
-        if (map.isStyleLoaded()) apply()
-        else map.once('load', apply)
+        } catch (e) { console.warn('dataset layer error:', e) }
       }
     }
+  }, [datasets])
 
-    setUploadedLayers(prev => [...prev, { id, name, color, visible: true, featureCount, geojson }])
-  }, [])
+  // ── Shared: add a parsed GeoJSON layer ───────────────────────────────────
+  // Delegates to parent's onAddDataset; map sync happens in the useEffect above.
+  const addLayer = useCallback((name, geojson, color) => {
+    onAddDataset?.(name, geojson, color)
+  }, [onAddDataset])
 
   // ── PMTiles file upload ───────────────────────────────────────────────────
   // Adds a local .pmtiles archive as a vector tile source via the registered
@@ -626,10 +624,10 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
     if (map.isStyleLoaded()) applyPM()
     else map.once('load', applyPM)
 
-    // Store in uploadedLayers with a sentinel geojson so the panel renders
-    setUploadedLayers(prev => [
+    // Store PMTiles entry in internal state (no GeoJSON — not lifted to parent)
+    setPmtilesLayers(prev => [
       ...prev,
-      { id: layerId, name: `${name} (PMTiles)`, color, visible: true, featureCount: '∞', geojson: null },
+      { id: layerId, name: `${name} (PMTiles)`, color, visible: true, featureCount: '∞', geojson: null, isPMTiles: true },
     ])
   }, [])
 
@@ -655,45 +653,10 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
   }, [addLayer, handlePMTilesFile])
 
   // ── Load a pre-curated event data layer ──────────────────────────────────
-  // Supports three urlType values:
-  //   'usgs-shakemap' — url is a USGS ComCat event ID; fetches ShakeMap contours
-  //   'direct'        — url is a public CORS-enabled GeoJSON (e.g. GeoBoundaries)
-  //   (default)       — url is an HDX/S3 resource; use proxy fallback chain
-  const handleLoadHdxLayer = useCallback(async (hdxLayer) => {
-    const key = hdxLayer.url
-    setHdxLayerLoading(prev => ({ ...prev, [key]: true }))
-    setHdxLayerErrors(prev => ({ ...prev, [key]: null }))
-    try {
-      let geojson
-
-      if (hdxLayer.urlType === 'usgs-shakemap') {
-        // USGS two-step: event detail → shakemap contour GeoJSON
-        geojson = await fetchUSGSShakeMap(hdxLayer.url)
-
-      } else if (hdxLayer.urlType === 'direct') {
-        // Direct public URL (GitHub raw, etc.) — fetch blob, parse as file
-        const blob = await fetchHDXResource(hdxLayer.url)
-        const ext  = formatToExt(hdxLayer.format)
-        const file = new File([blob], `${hdxLayer.name}.${ext}`, { type: blob.type })
-        const result = await parseVectorFiles([file])
-        geojson = result.geojson
-
-      } else {
-        // HDX resource with proxy fallback
-        const blob = await fetchHDXResource(hdxLayer.url)
-        const ext  = formatToExt(hdxLayer.format)
-        const file = new File([blob], `${hdxLayer.name}.${ext}`, { type: blob.type })
-        const result = await parseVectorFiles([file])
-        geojson = result.geojson
-      }
-
-      addLayer(hdxLayer.name, geojson)
-    } catch (e) {
-      setHdxLayerErrors(prev => ({ ...prev, [key]: e.message }))
-    } finally {
-      setHdxLayerLoading(prev => ({ ...prev, [key]: false }))
-    }
-  }, [addLayer])
+  // Delegates to Results.jsx loadHdxLayer (which owns hdxLayerLoading/hdxLayerErrors state).
+  const handleLoadHdxLayer = useCallback((hdxLayer) => {
+    onLoadHdxLayer?.(hdxLayer)
+  }, [onLoadHdxLayer])
 
   // ── Load an OSM layer via Overpass API ───────────────────────────────────
   // Uses the event bbox; falls back to the current map viewport bounds.
@@ -727,28 +690,48 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
   }, [event, addLayer])
 
   function removeLayer(layerId) {
-    const map = mapRef.current
-    if (map && map.isStyleLoaded()) {
-      // Remove standard GeoJSON layers
-      try { map.removeLayer(`upload-fill-${layerId}`)   } catch {}
-      try { map.removeLayer(`upload-line-${layerId}`)   } catch {}
-      try { map.removeLayer(`upload-circle-${layerId}`) } catch {}
-      // Remove PMTiles sub-layers (named with source-layer suffix)
-      const style = map.getStyle()
-      if (style?.layers) {
-        style.layers
-          .filter(l => l.id.startsWith(`upload-fill-${layerId}-`) ||
-                       l.id.startsWith(`upload-line-${layerId}-`) ||
-                       l.id.startsWith(`upload-circle-${layerId}-`))
-          .forEach(l => { try { map.removeLayer(l.id) } catch {} })
+    // Check if it's a PMTiles layer (managed internally)
+    const isPMTiles = pmtilesLayers.some(l => l.id === layerId)
+    if (isPMTiles) {
+      const map = mapRef.current
+      if (map && map.isStyleLoaded()) {
+        const style = map.getStyle()
+        if (style?.layers) {
+          style.layers
+            .filter(l => l.id.startsWith(`upload-fill-${layerId}-`) ||
+                         l.id.startsWith(`upload-line-${layerId}-`) ||
+                         l.id.startsWith(`upload-circle-${layerId}-`))
+            .forEach(l => { try { map.removeLayer(l.id) } catch {} })
+        }
+        try { map.removeSource(`upload-src-${layerId}`) } catch {}
       }
-      try { map.removeSource(`upload-src-${layerId}`) } catch {}
+      setPmtilesLayers(prev => prev.filter(l => l.id !== layerId))
+    } else {
+      // GeoJSON dataset — MapLibre cleanup happens in the sync useEffect when parent state updates
+      onRemoveDataset?.(layerId)
     }
-    setUploadedLayers(prev => prev.filter(l => l.id !== layerId))
   }
 
   function toggleLayer(layerId) {
-    setUploadedLayers(prev => prev.map(l => l.id === layerId ? { ...l, visible: !l.visible } : l))
+    const isPMTiles = pmtilesLayers.some(l => l.id === layerId)
+    if (isPMTiles) {
+      const map = mapRef.current
+      const layer = pmtilesLayers.find(l => l.id === layerId)
+      const newVis = layer ? (!layer.visible ? 'visible' : 'none') : 'visible'
+      if (map && map.isStyleLoaded()) {
+        const style = map.getStyle()
+        if (style?.layers) {
+          style.layers
+            .filter(l => l.id.startsWith(`upload-fill-${layerId}-`) ||
+                         l.id.startsWith(`upload-line-${layerId}-`) ||
+                         l.id.startsWith(`upload-circle-${layerId}-`))
+            .forEach(l => { try { map.setLayoutProperty(l.id, 'visibility', newVis) } catch {} })
+        }
+      }
+      setPmtilesLayers(prev => prev.map(l => l.id === layerId ? { ...l, visible: !l.visible } : l))
+    } else {
+      onToggleDataset?.(layerId)
+    }
   }
 
   async function handleExportMap() {
@@ -808,13 +791,14 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
   }
 
   function handleColorChange(layerId, newColor) {
+    // Apply to map immediately for snappy UX; the sync useEffect will also re-apply on next render
     const map = mapRef.current
     if (map) {
       try { map.setPaintProperty(`upload-fill-${layerId}`,   'fill-color',   newColor) } catch {}
       try { map.setPaintProperty(`upload-line-${layerId}`,   'line-color',   newColor) } catch {}
       try { map.setPaintProperty(`upload-circle-${layerId}`, 'circle-color', newColor) } catch {}
     }
-    setUploadedLayers(prev => prev.map(l => l.id === layerId ? { ...l, color: newColor } : l))
+    onChangeDatasetColor?.(layerId, newColor)
   }
 
   // Drag-and-drop onto the map container
@@ -897,50 +881,6 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
       {/* ── Bottom-left: Uploaded layers panel ── */}
       <div className={styles.layerPanel}>
 
-        {/* Curated event data layers */}
-        {event?.hdxLayers?.length > 0 && (
-          <div className={styles.eventDataSection}>
-            <div className={styles.eventDataLabel}>Event Data</div>
-            {event.hdxLayers.map(hdxLayer => {
-              const key       = hdxLayer.url
-              const isLoaded  = uploadedLayers.some(l => l.name === hdxLayer.name)
-              const isLoading = hdxLayerLoading[key]
-              const err       = hdxLayerErrors[key]
-              const meta      = TYPE_META[hdxLayer.type] || { label: hdxLayer.type, color: '#6b7280' }
-              return (
-                <div key={key} className={styles.eventDataItem}>
-                  <div className={styles.eventDataRow}>
-                    <span
-                      className={styles.eventDataType}
-                      style={{ background: `${meta.color}22`, color: meta.color, borderColor: `${meta.color}55` }}
-                    >
-                      {meta.label}
-                    </span>
-                    <span className={styles.eventDataName} title={`${hdxLayer.name} · ${hdxLayer.source}`}>
-                      {hdxLayer.name}
-                    </span>
-                    {isLoaded ? (
-                      <span className={styles.eventDataLoaded}>✓</span>
-                    ) : (
-                      <button
-                        className={`${styles.eventDataLoad} ${err ? styles.eventDataLoadRetry : ''}`}
-                        disabled={!!isLoading}
-                        onClick={() => handleLoadHdxLayer(hdxLayer)}
-                        title={`Load from ${hdxLayer.source}`}
-                      >
-                        {isLoading ? <span className={styles.spinnerXs} /> : err ? 'Retry' : 'Load'}
-                      </button>
-                    )}
-                  </div>
-                  {err && (
-                    <div className={styles.eventDataErrMsg}>{err}</div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        )}
-
         {/* OSM infrastructure layers via Overpass API */}
         {event && (
           <div className={styles.eventDataSection}>
@@ -949,7 +889,7 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
               <span className={styles.osmBadge}>Overpass</span>
             </div>
             {OSM_LAYERS.map(osmLayer => {
-              const loaded  = uploadedLayers.some(l => l.name === `OSM · ${osmLayer.name}`)
+              const loaded  = datasets.some(l => l.name === `OSM · ${osmLayer.name}`)
               const loading = osmLoading[osmLayer.id]
               const err     = osmErrors[osmLayer.id]
               return (
@@ -964,7 +904,7 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
                           className={styles.layerDownload}
                           title="Download as GeoJSON"
                           onClick={() => {
-                            const layer = uploadedLayers.find(l => l.name === `OSM · ${osmLayer.name}`)
+                            const layer = datasets.find(l => l.name === `OSM · ${osmLayer.name}`)
                             if (layer) downloadLayer(layer)
                           }}
                         >
@@ -989,18 +929,13 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
           </div>
         )}
 
-        {/* Upload layers list */}
-        {uploadedLayers.length > 0 && (
+        {/* PMTiles layers (internal only) */}
+        {pmtilesLayers.length > 0 && (
           <div className={styles.layerList}>
-            {uploadedLayers.map(layer => (
+            {pmtilesLayers.map(layer => (
               <div key={layer.id} className={styles.layerRow}>
-                <label className={styles.layerSwatch} style={{ background: layer.color }} title="Change color">
-                  <input
-                    type="color"
-                    value={layer.color}
-                    onChange={e => handleColorChange(layer.id, e.target.value)}
-                    className={styles.colorInput}
-                  />
+                <label className={styles.layerSwatch} style={{ background: layer.color }} title="PMTiles layer">
+                  <span />
                 </label>
                 <button
                   className={`${styles.layerToggle} ${!layer.visible ? styles.layerToggleOff : ''}`}
@@ -1010,9 +945,6 @@ export default function MapPanel({ event, items, hoveredId, selectedItems, previ
                   <span className={styles.layerName}>{layer.name}</span>
                   <span className={styles.layerCount}>{layer.featureCount}</span>
                 </button>
-                {layer.geojson && (
-                  <button className={styles.layerDownload} onClick={() => downloadLayer(layer)} title="Download as GeoJSON"><DownloadIcon /></button>
-                )}
                 <button className={styles.layerRemove} onClick={() => removeLayer(layer.id)} title="Remove layer">✕</button>
               </div>
             ))}
