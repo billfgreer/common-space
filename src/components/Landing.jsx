@@ -22,6 +22,7 @@ const TYPE_CATS = {
   Volcano:    'Volcano',
   Landslide:  'Landslide',
   Conflict:   'Conflict',
+  Outbreak:   'Outbreak',
   Explosion:  'Other',
   Archive:    'Archive',
 }
@@ -34,6 +35,7 @@ const CAT_FILTERS = [
   { id: 'Hurricane',  label: 'Hurricane',   emoji: '🌀' },
   { id: 'Volcano',    label: 'Volcano',     emoji: '🌋' },
   { id: 'Conflict',   label: 'Conflict',    emoji: '⚔️'  },
+  { id: 'Outbreak',   label: 'Outbreak',    emoji: '🦠'  },
   { id: 'Archive',    label: 'Archive',     emoji: '🛰' },
 ]
 

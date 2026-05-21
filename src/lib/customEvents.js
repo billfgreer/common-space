@@ -44,6 +44,7 @@ export const EVENT_TYPES = [
   { type: 'Drought',    emoji: '☀️', label: 'Drought'    },
   { type: 'Tsunami',    emoji: '🌊', label: 'Tsunami'    },
   { type: 'Conflict',   emoji: '⚔️', label: 'Conflict'   },
+  { type: 'Outbreak',   emoji: '🦠', label: 'Outbreak'   },
   { type: 'Other',      emoji: '📍', label: 'Other'      },
 ]
 
@@ -59,6 +60,7 @@ const GRADIENTS = {
   Drought:    'linear-gradient(155deg,#8B7A3A,#A09040,#C0AA60,#6A7A4A)',
   Tsunami:    'linear-gradient(150deg,#2D5A8E,#1E4A8A,#4A8AAD,#6AAAD0)',
   Conflict:   'linear-gradient(145deg,#4A2020,#6A2A2A,#8A3A3A,#5A1A1A)',
+  Outbreak:   'linear-gradient(145deg,#1A3A2A,#2A5A3A,#3A7A4A,#1A4A2A)',
   Other:      'linear-gradient(145deg,#4A5A6A,#6A7A8A,#5A6A7A,#3A4A5A)',
 }
 

@@ -9,6 +9,37 @@ export const EVENTS = [
 
   // ── 2025 ────────────────────────────────────────────────────────────────────
   {
+    id: 'drc-ebola-2025',
+    name: 'DRC Ebola Outbreak 2025',
+    location: 'South Kivu, Democratic Republic of Congo',
+    eventDate: '2025-01-26',
+    type: 'Outbreak',
+    emoji: '🦠',
+    center: [28.2, -2.5],
+    zoom: 7,
+    bbox: [26.5, -4.5, 30.0, -0.5],
+    catalogUrl: null,
+    imageCount: 0,
+    thumbGradient: 'linear-gradient(145deg,#1A3A2A,#2A5A3A,#3A7A4A,#1A4A2A)',
+    impact: { deaths: 9, displaced: null, homesDestroyed: null, costUSD: null },
+    country: 'cd',
+    hdxLayers: [
+      {
+        name: 'DRC Admin Boundaries (ADM1)',
+        url: 'https://raw.githubusercontent.com/wmgeolab/geoBoundaries/main/releaseData/gbOpen/COD/ADM1/geoBoundaries-COD-ADM1.geojson',
+        urlType: 'direct',
+        format: 'GeoJSON', type: 'admin', source: 'GeoBoundaries',
+      },
+      {
+        name: 'DRC Admin Boundaries (ADM2 — Health Zones)',
+        url: 'https://raw.githubusercontent.com/wmgeolab/geoBoundaries/main/releaseData/gbOpen/COD/ADM2/geoBoundaries-COD-ADM2.geojson',
+        urlType: 'direct',
+        format: 'GeoJSON', type: 'admin', source: 'GeoBoundaries',
+      },
+    ],
+  },
+
+  {
     id: 'texas-flooding-2025',
     name: 'Texas Hill Country Floods 2025',
     location: 'Guadalupe River Basin, Texas',
