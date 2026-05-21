@@ -420,6 +420,24 @@ export const EVENTS = [
   },
 
   {
+    id: 'umbra-libya-floods-2023',
+    name: 'Libya Floods 2023 — Umbra SAR',
+    location: 'Derna, Libya',
+    eventDate: '2023-09-10',
+    type: 'Flood',
+    emoji: '🌊',
+    center: [22.64, 32.76],
+    zoom: 12,
+    bbox: [22.4, 32.5, 23.0, 33.0],
+    catalogUrl: `${UMBRA}/2023/2023-09/2023-09-12/catalog.json`,
+    imageCount: 2,
+    source: 'umbra',
+    thumbGradient: 'linear-gradient(145deg,#1a1a2e,#16213e,#0f3460,#533483)',
+    impact: { deaths: 11300, displaced: 40000, homesDestroyed: 5000, costUSD: 500 },
+    country: 'ly',
+  },
+
+  {
     id: 'libya-floods-2023',
     name: 'Libya Floods 2023',
     location: 'Derna, Libya',
@@ -442,6 +460,24 @@ export const EVENTS = [
         format: 'GeoJSON', type: 'admin', source: 'GeoBoundaries',
       },
     ],
+  },
+
+  {
+    id: 'umbra-morocco-earthquake-2023',
+    name: 'Morocco Earthquake 2023 — Umbra SAR',
+    location: 'Al Haouz, Morocco',
+    eventDate: '2023-09-08',
+    type: 'Earthquake',
+    emoji: '🌍',
+    center: [-8.0, 31.1],
+    zoom: 11,
+    bbox: [-9.0, 30.5, -7.0, 31.8],
+    catalogUrl: `${UMBRA}/2023/2023-09/2023-09-10/catalog.json`,
+    imageCount: 2,
+    source: 'umbra',
+    thumbGradient: 'linear-gradient(145deg,#1a1a2e,#16213e,#0f3460,#533483)',
+    impact: { deaths: 2960, displaced: 300000, homesDestroyed: 50000, costUSD: 1300 },
+    country: 'ma',
   },
 
   {
@@ -540,6 +576,23 @@ export const EVENTS = [
   },
 
   {
+    id: 'umbra-lahaina-fire-2023',
+    name: 'Lahaina Fire 2023 — Umbra SAR',
+    location: 'Maui, Hawaii',
+    eventDate: '2023-08-08',
+    type: 'Wildfire',
+    emoji: '🔥',
+    center: [-156.67, 20.88],
+    zoom: 13,
+    bbox: [-156.72, 20.84, -156.62, 20.93],
+    catalogUrl: `${UMBRA}/2023/2023-08/2023-08-11/catalog.json`,
+    imageCount: 4,
+    source: 'umbra',
+    thumbGradient: 'linear-gradient(145deg,#1a1a2e,#16213e,#0f3460,#533483)',
+    impact: { deaths: 100, displaced: 12000, homesDestroyed: 3000, costUSD: 6000 },
+  },
+
+  {
     id: 'shovi-georgia-landslide-2023',
     name: 'Shovi Landslide 2023',
     location: 'Racha, Georgia',
@@ -633,6 +686,24 @@ export const EVENTS = [
         format: 'GeoJSON', type: 'admin', source: 'GeoBoundaries',
       },
     ],
+  },
+
+  {
+    id: 'umbra-turkey-earthquake-2023',
+    name: 'Turkey Earthquake 2023 — Umbra SAR',
+    location: 'Kahramanmaraş, Turkey',
+    eventDate: '2023-02-07',
+    type: 'Earthquake',
+    emoji: '🌍',
+    center: [37.38, 37.10],
+    zoom: 11,
+    bbox: [36.5, 36.5, 38.5, 38.0],
+    catalogUrl: `${UMBRA}/2023/2023-02/2023-02-07/catalog.json`,
+    imageCount: 4,
+    source: 'umbra',
+    thumbGradient: 'linear-gradient(145deg,#1a1a2e,#16213e,#0f3460,#533483)',
+    impact: { deaths: 50783, displaced: 1500000, homesDestroyed: 160000, costUSD: 100000 },
+    country: 'tr',
   },
 
   {
@@ -980,6 +1051,22 @@ export const EVENTS = [
   },
 
   // ── Umbra Open SAR Data (sub-meter SAR, CC-BY-4.0, AWS Open Data) ─────────
+  {
+    id: 'umbra-sar-2023',
+    name: 'Umbra SAR Archive 2023',
+    location: 'Global Monitoring Sites',
+    eventDate: null,
+    type: 'Archive',
+    emoji: '📡',
+    center: [0, 20],
+    zoom: 2,
+    bbox: null,
+    catalogUrl: `${UMBRA}/2023/catalog.json`,
+    imageCount: 60,
+    source: 'umbra',
+    thumbGradient: 'linear-gradient(145deg,#16213e,#1a1a2e,#533483,#0f3460)',
+    impact: null,
+  },
   {
     id: 'umbra-sar-2024',
     name: 'Umbra SAR Archive 2024',
