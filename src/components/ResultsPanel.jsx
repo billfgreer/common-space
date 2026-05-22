@@ -1,6 +1,7 @@
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import ImageryCard from './ImageryCard.jsx'
 import { parseVectorFiles } from '../lib/vectorParse.js'
+import { NOTE_TAGS, loadEventNotes, saveNote, deleteNote } from '../lib/notes.js'
 import styles from './ResultsPanel.module.css'
 
 // ─── Geometry helpers ──────────────────────────────────────────────────────────
@@ -308,6 +309,238 @@ function DatasetsTab({
   )
 }
 
+// ─── Notes tab ────────────────────────────────────────────────────────────────
+
+const PaperclipIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+  </svg>
+)
+
+const TrashIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+  </svg>
+)
+
+function NotesTab({ event }) {
+  const [notes, setNotes]             = useState(() => loadEventNotes(event?.id))
+  const [text, setText]               = useState('')
+  const [selectedTags, setSelectedTags] = useState(['general'])
+  const [attachments, setAttachments] = useState([])  // [{ name, type, dataUrl }]
+  const [attachErr, setAttachErr]     = useState(null)
+  const [submitting, setSubmitting]   = useState(false)
+  const fileRef = useRef(null)
+  const textRef = useRef(null)
+
+  // Reload when event changes
+  useEffect(() => {
+    setNotes(loadEventNotes(event?.id))
+    setText('')
+    setSelectedTags(['general'])
+    setAttachments([])
+  }, [event?.id])
+
+  function toggleTag(id) {
+    setSelectedTags(prev =>
+      prev.includes(id) ? (prev.length > 1 ? prev.filter(t => t !== id) : prev) : [...prev, id]
+    )
+  }
+
+  async function handleFiles(files) {
+    if (!files?.length) return
+    setAttachErr(null)
+    const MAX = 4 * 1024 * 1024  // 4 MB per file
+    const results = []
+    for (const file of Array.from(files)) {
+      if (file.size > MAX) { setAttachErr(`${file.name} exceeds 4 MB limit`); continue }
+      const dataUrl = await new Promise((res, rej) => {
+        const r = new FileReader()
+        r.onload = () => res(r.result)
+        r.onerror = rej
+        r.readAsDataURL(file)
+      })
+      results.push({ name: file.name, type: file.type, dataUrl })
+    }
+    setAttachments(prev => [...prev, ...results])
+  }
+
+  function removeAttachment(idx) {
+    setAttachments(prev => prev.filter((_, i) => i !== idx))
+  }
+
+  function handleSubmit() {
+    if (!text.trim() && !attachments.length) return
+    setSubmitting(true)
+    const note = {
+      id: `note-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      timestamp: new Date().toISOString(),
+      text: text.trim(),
+      tags: selectedTags,
+      attachments,
+    }
+    saveNote(event?.id, note)
+    setNotes(loadEventNotes(event?.id))
+    setText('')
+    setSelectedTags(['general'])
+    setAttachments([])
+    setSubmitting(false)
+  }
+
+  function handleDelete(noteId) {
+    deleteNote(event?.id, noteId)
+    setNotes(loadEventNotes(event?.id))
+  }
+
+  function downloadAttachment(att) {
+    const a = document.createElement('a')
+    a.href = att.dataUrl
+    a.download = att.name
+    a.click()
+  }
+
+  function formatDate(iso) {
+    const d = new Date(iso)
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) +
+      ' · ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+  }
+
+  function isImage(type) { return type?.startsWith('image/') }
+
+  return (
+    <div className={styles.notesTab}>
+
+      {/* Compose form */}
+      <div className={styles.notesCompose}>
+        <textarea
+          ref={textRef}
+          className={styles.notesTextarea}
+          placeholder="Share observations, after-action notes, what went well, lessons learned…"
+          value={text}
+          onChange={e => setText(e.target.value)}
+          rows={4}
+        />
+
+        {/* Tag chips */}
+        <div className={styles.notesTagRow}>
+          {NOTE_TAGS.map(tag => (
+            <button
+              key={tag.id}
+              className={`${styles.noteTagChip} ${selectedTags.includes(tag.id) ? styles.noteTagChipActive : ''}`}
+              style={selectedTags.includes(tag.id) ? { '--tag-color': tag.color } : {}}
+              onClick={() => toggleTag(tag.id)}
+            >
+              {tag.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Attachments preview */}
+        {attachments.length > 0 && (
+          <div className={styles.notesAttachList}>
+            {attachments.map((att, i) => (
+              <div key={i} className={styles.notesAttachItem}>
+                {isImage(att.type) ? (
+                  <img src={att.dataUrl} alt={att.name} className={styles.notesAttachThumb} />
+                ) : (
+                  <div className={styles.notesAttachIcon}>📄</div>
+                )}
+                <span className={styles.notesAttachName}>{att.name}</span>
+                <button className={styles.notesAttachRemove} onClick={() => removeAttachment(i)} title="Remove">✕</button>
+              </div>
+            ))}
+          </div>
+        )}
+        {attachErr && <div className={styles.dsErr}>{attachErr}</div>}
+
+        <div className={styles.notesComposeActions}>
+          <button className={styles.notesAttachBtn} onClick={() => fileRef.current?.click()} title="Attach files">
+            <PaperclipIcon />
+            Attach files
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            multiple
+            style={{ display: 'none' }}
+            onChange={e => { handleFiles(e.target.files); e.target.value = '' }}
+          />
+          <button
+            className={styles.notesSubmitBtn}
+            onClick={handleSubmit}
+            disabled={submitting || (!text.trim() && !attachments.length)}
+          >
+            Post Note
+          </button>
+        </div>
+      </div>
+
+      {/* Thread */}
+      {notes.length === 0 ? (
+        <div className={styles.dsEmpty}>
+          <div className={styles.dsEmptyIcon}>📋</div>
+          <div className={styles.dsEmptyTitle}>No notes yet</div>
+          <div className={styles.dsEmptyText}>
+            Share after-action reports, lessons learned, or observations about this event's response.
+          </div>
+        </div>
+      ) : (
+        <div className={styles.notesList}>
+          {notes.map(note => (
+            <div key={note.id} className={styles.noteCard}>
+              <div className={styles.noteHeader}>
+                <div className={styles.noteTags}>
+                  {note.tags.map(tagId => {
+                    const meta = NOTE_TAGS.find(t => t.id === tagId)
+                    return meta ? (
+                      <span
+                        key={tagId}
+                        className={styles.noteTagBadge}
+                        style={{ background: `${meta.color}18`, color: meta.color, borderColor: `${meta.color}44` }}
+                      >
+                        {meta.label}
+                      </span>
+                    ) : null
+                  })}
+                </div>
+                <div className={styles.noteHeaderRight}>
+                  <span className={styles.noteDate}>{formatDate(note.timestamp)}</span>
+                  <button
+                    className={`${styles.dsActionBtn} ${styles.dsRemoveBtn}`}
+                    onClick={() => handleDelete(note.id)}
+                    title="Delete note"
+                  >
+                    <TrashIcon />
+                  </button>
+                </div>
+              </div>
+
+              {note.text && <p className={styles.noteText}>{note.text}</p>}
+
+              {note.attachments?.length > 0 && (
+                <div className={styles.noteAttachments}>
+                  {note.attachments.map((att, i) => (
+                    <button key={i} className={styles.noteAttachFile} onClick={() => downloadAttachment(att)} title={`Download ${att.name}`}>
+                      {isImage(att.type) ? (
+                        <img src={att.dataUrl} alt={att.name} className={styles.noteAttachImg} />
+                      ) : (
+                        <>
+                          <span className={styles.noteAttachFileIcon}>📄</span>
+                          <span className={styles.noteAttachFileName}>{att.name}</span>
+                        </>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── ResultsPanel ──────────────────────────────────────────────────────────────
 
 export default function ResultsPanel({
@@ -438,6 +671,12 @@ export default function ResultsPanel({
         >
           Datasets
           {datasets.length > 0 && <span className={styles.tabBadge}>{datasets.length}</span>}
+        </button>
+        <button
+          className={`${styles.tab} ${activeTab === 'notes' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('notes')}
+        >
+          Notes
         </button>
       </div>
 
@@ -609,6 +848,11 @@ export default function ResultsPanel({
           hdxLayerErrors={hdxLayerErrors}
           onLoadHdxLayer={onLoadHdxLayer}
         />
+      )}
+
+      {/* ── Notes tab ── */}
+      {activeTab === 'notes' && (
+        <NotesTab event={event} />
       )}
     </div>
   )
