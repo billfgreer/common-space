@@ -3,9 +3,42 @@
 // eventDate is the disaster date — items before it are BEFORE, after are AFTER.
 // Ordered: most recent first within each year; archives pinned to bottom.
 
-import { MAXAR_BASE as BASE, SATELLOGIC_BASE as SATELLOGIC, PLANET_BASE as PLANET, UMBRA_BASE as UMBRA } from './constants.js'
+import { MAXAR_BASE as BASE, SATELLOGIC_BASE as SATELLOGIC, PLANET_BASE as PLANET, UMBRA_BASE as UMBRA, SOURCE_COOP_BASE as SOURCE_COOP } from './constants.js'
 
 export const EVENTS = [
+
+  // ── 2026 ────────────────────────────────────────────────────────────────────
+  {
+    id: 'venezuela-earthquake-2026',
+    name: 'Venezuela Earthquakes 2026',
+    location: 'Yaracuy–Carabobo Coast, Venezuela',
+    eventDate: '2026-06-24',
+    type: 'Earthquake',
+    emoji: '🌍',
+    center: [-68.472, 10.435],
+    zoom: 8,
+    bbox: [-69.5, 9.5, -66.5, 11.5],
+    catalogUrl: `${SOURCE_COOP}/planet/venezuela-earthquake-2026-06-24/catalog.json`,
+    imageCount: 0,
+    source: 'planet',
+    thumbGradient: 'linear-gradient(135deg,#8B7355,#5a6e8a,#7a9b6a,#4a5a7a)',
+    impact: { deaths: 1430, displaced: 200000, homesDestroyed: null, costUSD: null },
+    country: 've',
+    hdxLayers: [
+      {
+        name: 'Venezuela Admin Boundaries (ADM1)',
+        url: 'https://raw.githubusercontent.com/wmgeolab/geoBoundaries/main/releaseData/gbOpen/VEN/ADM1/geoBoundaries-VEN-ADM1.geojson',
+        urlType: 'direct',
+        format: 'GeoJSON', type: 'admin', source: 'GeoBoundaries',
+      },
+      {
+        name: 'Venezuela Admin Boundaries (ADM2)',
+        url: 'https://raw.githubusercontent.com/wmgeolab/geoBoundaries/main/releaseData/gbOpen/VEN/ADM2/geoBoundaries-VEN-ADM2.geojson',
+        urlType: 'direct',
+        format: 'GeoJSON', type: 'admin', source: 'GeoBoundaries',
+      },
+    ],
+  },
 
   // ── 2025 ────────────────────────────────────────────────────────────────────
   {
