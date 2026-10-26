@@ -168,7 +168,7 @@ function FeaturedBanner({ event, onClick }) {
           )}
         </div>
 
-        <div className={styles.featuredCta}>Explore Event →</div>
+        <div className={styles.featuredCta}>Explore Event <span className={styles.featuredCtaArrow}>&gt;&gt;</span></div>
       </div>
     </button>
   )

@@ -1,0 +1,6 @@
+/* Common Space Design System — global entry point.
+   Consumers link THIS file only. Keep it as @import lines. */
+@import "./tokens/fonts.css";
+@import "./tokens/colors.css";
+@import "./tokens/typography.css";
+@import "./tokens/spacing.css";

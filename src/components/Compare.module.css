@@ -30,11 +30,12 @@
 
 /* Labels */
 .label {
+  font-family: var(--font-mono);
   position: absolute;
   top: 16px;
-  font-size: 11px; font-weight: 800;
-  letter-spacing: 1px; text-transform: uppercase;
-  padding: 5px 14px; border-radius: 4px;
+  font-size: 10px; font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-label); text-transform: uppercase;
+  padding: 5px 14px; border-radius: var(--radius);
   z-index: 10;
 }
 .labelBefore { left: 16px; background: var(--yellow); color: var(--ink); }
@@ -80,9 +81,10 @@
 
 .metaItem { display: flex; align-items: center; gap: 8px; font-size: 12px; }
 .metaBadge {
-  font-size: 9px; font-weight: 800;
-  letter-spacing: .6px; text-transform: uppercase;
-  padding: 2px 7px; border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 9px; font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-label); text-transform: uppercase;
+  padding: 2px 7px; border-radius: var(--radius);
 }
 .metaBefore { background: var(--yellow); color: var(--ink); }
 .metaAfter  { background: var(--cyan);   color: var(--ink); }
@@ -106,7 +108,6 @@
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,.6);
-  backdrop-filter: blur(4px);
   z-index: 500;
   display: flex;
   align-items: center;
@@ -115,46 +116,48 @@
 
 .modalBox {
   background: var(--white);
-  border: 1.5px solid var(--border);
-  border-radius: 16px;
+  border: 1px solid var(--cs-ink);
+  border-radius: var(--radius);
   width: 480px;
   max-width: 90vw;
   padding: 24px;
-  box-shadow: 0 24px 64px rgba(0,0,0,.2);
+  box-shadow: var(--shadow-float);
 }
 
 .modalHeader { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
-.modalTitle  { font-size: 16px; font-weight: 800; color: var(--ink); }
+.modalTitle  { font-family: var(--font-display); font-size: 16px; font-weight: var(--fw-black); color: var(--ink); text-transform: uppercase; letter-spacing: -0.01em; }
 .modalClose  {
-  width: 28px; height: 28px; border-radius: 6px;
+  width: 28px; height: 28px; border-radius: var(--radius);
   background: var(--bg); color: var(--ink-mid);
   display: flex; align-items: center; justify-content: center;
-  font-size: 15px; transition: background .15s;
+  font-size: 15px; transition: background var(--dur-fast) var(--ease-out);
 }
-.modalClose:hover { background: var(--border); }
+.modalClose:hover { background: var(--border); color: var(--ink); }
+.modalClose:focus-visible { outline: 2px solid var(--cs-ink); outline-offset: 1px; box-shadow: 0 0 0 3px var(--cs-yellow); }
 
 .modalTabs {
   display: flex;
   gap: 2px;
   background: var(--bg);
-  border-radius: 8px;
+  border-radius: var(--radius);
   padding: 3px;
   margin-bottom: 18px;
 }
 .tab {
   flex: 1; padding: 8px;
-  font-size: 13px; font-weight: 600;
+  font-family: var(--font-mono);
+  font-size: 10px; font-weight: var(--fw-bold); letter-spacing: var(--ls-label); text-transform: uppercase;
   color: var(--ink-soft);
-  border-radius: 6px;
-  transition: all .15s;
+  border-radius: var(--radius);
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
 }
-.tabActive { background: var(--white); color: var(--ink); box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.tabActive { background: var(--cs-ink); color: var(--white); }
 
 .code {
   background: var(--ink);
-  border-radius: 8px;
+  border-radius: var(--radius);
   padding: 14px;
-  font-family: 'SF Mono', Consolas, monospace;
+  font-family: var(--font-mono), 'SF Mono', Consolas, monospace;
   font-size: 11px;
   color: var(--cyan);
   line-height: 1.6;
@@ -166,10 +169,12 @@
 .copyBtn {
   width: 100%; padding: 12px;
   background: var(--ink); color: var(--white);
-  font-size: 14px; font-weight: 700;
-  border-radius: 8px; transition: background .15s;
+  font-family: var(--font-mono);
+  font-size: 11px; font-weight: var(--fw-bold); letter-spacing: var(--ls-label); text-transform: uppercase;
+  border-radius: var(--radius); transition: background var(--dur-fast) var(--ease-out);
 }
-.copyBtn:hover { background: #333; }
+.copyBtn:hover { background: var(--cs-mute); }
+.copyBtn:focus-visible { outline: 2px solid var(--cs-yellow); outline-offset: 2px; }
 
 /* ── Sentinel-2 swap controls ── */
 .s2Area {
@@ -184,55 +189,57 @@
 .s2AreaAfter  { right: 16px; flex-direction: row-reverse; }
 
 .s2Btn {
-  background: rgba(0, 0, 0, 0.60);
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: var(--cs-ink);
+  color: var(--white);
+  border: 1px solid var(--cs-ink);
   padding: 4px 11px;
-  border-radius: 4px;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-label);
   text-transform: uppercase;
   cursor: pointer;
-  backdrop-filter: blur(6px);
-  transition: background 0.15s;
+  transition: background var(--dur-fast) var(--ease-out);
   white-space: nowrap;
 }
-.s2Btn:hover:not(:disabled) { background: rgba(0, 0, 0, 0.85); }
+.s2Btn:hover:not(:disabled) { background: var(--cs-mute); }
+.s2Btn:focus-visible { outline: 2px solid var(--cs-yellow); outline-offset: 1px; }
 .s2Btn:disabled { opacity: 0.55; cursor: default; }
 
 .s2Badge {
-  background: rgba(34, 197, 94, 0.80);
-  color: #fff;
+  background: var(--cyan);
+  color: var(--cs-on-cyan);
   padding: 4px 11px;
-  border-radius: 4px;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-label);
   text-transform: uppercase;
-  backdrop-filter: blur(6px);
   white-space: nowrap;
 }
 
 .s2Reset {
-  background: rgba(0, 0, 0, 0.50);
+  background: var(--cs-ink);
   color: rgba(255, 255, 255, 0.75);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.4px;
+  border: 1px solid var(--cs-ink);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-label);
   text-transform: uppercase;
   cursor: pointer;
   padding: 4px 9px;
-  border-radius: 4px;
-  backdrop-filter: blur(6px);
-  transition: all 0.15s;
+  border-radius: var(--radius);
+  transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
   white-space: nowrap;
 }
-.s2Reset:hover { color: #fff; background: rgba(0, 0, 0, 0.75); }
+.s2Reset:hover { color: var(--white); background: var(--cs-mute); }
+.s2Reset:focus-visible { outline: 2px solid var(--cs-yellow); outline-offset: 1px; }
 
 .s2ErrorNote {
   font-size: 11px;
-  color: #ef4444;
+  color: var(--magenta);
   font-weight: 600;
 }

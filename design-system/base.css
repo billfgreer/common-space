@@ -1,0 +1,79 @@
+/* Common Space — base element styles + signature devices.
+   Import after styles.css. Framework-agnostic; port to your stack as needed. */
+:root {
+  --dur-fast: 120ms;
+  --dur-base: 180ms;
+  --dur-slow: 240ms;
+  --ease-out: cubic-bezier(.2,.7,.2,1);
+  --shadow-float: 0 30px 80px -40px rgba(0,0,0,.35);
+  --dot-grid: radial-gradient(#E6E6E6 1.2px, transparent 1.4px) 0 0 / 22px 22px;
+  --fs-display-fluid: clamp(44px, 8vw, 84px);
+  --fs-h1-fluid: clamp(36px, 5.5vw, 56px);
+  --fs-h2-fluid: clamp(26px, 3.6vw, 34px);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--cs-white);
+  color: var(--text-body);
+  font: var(--fw-regular) 16px/var(--lh-body) var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+::selection { background: var(--selection-bg); color: var(--selection-fg); }
+
+h1, h2, h3, h4 {
+  margin: 0;
+  color: var(--text-strong);
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  text-wrap: balance;
+}
+h1 { font-size: var(--fs-h1-fluid); font-weight: var(--fw-black); line-height: var(--lh-snug); letter-spacing: var(--ls-display); }
+h2 { font-size: var(--fs-h2-fluid); font-weight: var(--fw-heavy); line-height: var(--lh-heading); letter-spacing: var(--ls-heading); }
+h3 { font-size: var(--fs-h3); font-weight: var(--fw-heavy); line-height: var(--lh-heading); }
+p { margin: 0; text-wrap: pretty; max-width: 68ch; }
+
+a {
+  color: var(--cs-ink);
+  text-decoration: underline;
+  text-decoration-color: var(--cs-yellow);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+  transition: text-decoration-thickness var(--dur-fast) var(--ease-out);
+}
+a:hover { text-decoration-thickness: 4px; color: var(--cs-ink); }
+
+:focus-visible { outline: 2px solid var(--cs-ink); outline-offset: 2px; box-shadow: 0 0 0 6px var(--cs-yellow); }
+
+hr { border: 0; border-top: var(--bw-rule) solid var(--cs-ink); margin: 0; }
+
+/* --- Signature devices --- */
+.cs-display { font: var(--fw-black) var(--fs-display-fluid)/var(--lh-tight) var(--font-display); letter-spacing: var(--ls-display); text-transform: uppercase; color: var(--text-strong); }
+.cs-label { font: var(--fw-bold) var(--fs-label)/1.4 var(--font-mono); letter-spacing: var(--ls-label); text-transform: uppercase; }
+.cs-eyebrow { font: var(--fw-bold) var(--fs-label)/1.4 var(--font-mono); letter-spacing: var(--ls-eyebrow); text-transform: uppercase; color: var(--text-strong); }
+.cs-eyebrow::before { content: "/// "; color: var(--cs-magenta); }
+.cs-dot-grid { background: var(--dot-grid), var(--cs-white); }
+.cs-card { background: var(--surface-card); border: var(--bw-hair) solid var(--border-default); padding: var(--pad-card); transition: border-color var(--dur-fast) var(--ease-out); }
+a.cs-card:hover, button.cs-card:hover { border-color: var(--cs-ink); }
+
+.cs-cmy-bar { display: flex; flex-shrink: 0; }
+.cs-cmy-bar::before, .cs-cmy-bar::after, .cs-cmy-bar > span { content: ""; flex: 1; }
+.cs-cmy-bar::before { background: var(--cs-cyan); }
+.cs-cmy-bar > span { background: var(--cs-magenta); }
+.cs-cmy-bar::after { background: var(--cs-yellow); }
+.cs-cmy-bar--h { width: 100%; height: 12px; flex-direction: row; }
+.cs-cmy-bar--v { height: 100%; width: 12px; flex-direction: column; }
+/* usage: <div class="cs-cmy-bar cs-cmy-bar--h"><span></span></div> */
+
+.cs-ticks { position: relative; }
+.cs-ticks::before, .cs-ticks::after { content: ""; position: absolute; width: 18px; height: 18px; border: 0 solid var(--cs-ink); pointer-events: none; }
+.cs-ticks::before { top: 12px; left: 12px; border-top-width: 2px; border-left-width: 2px; }
+.cs-ticks::after { bottom: 12px; right: 12px; border-bottom-width: 2px; border-right-width: 2px; }
+
+.cs-signal-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--cs-cyan); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0ms !important; animation-duration: 0ms !important; }
+}

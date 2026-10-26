@@ -1,14 +1,14 @@
 .panel {
   width: 360px;
   background: var(--white);
-  border: 1.5px solid var(--border);
-  border-radius: 14px;
+  border: 1px solid var(--cs-ink);
+  border-radius: var(--radius);
   display: flex;
   flex-direction: column;
-  box-shadow: 0 16px 48px rgba(0,0,0,.22), 0 2px 8px rgba(0,0,0,.1);
+  box-shadow: var(--shadow-float);
   z-index: 9000;
   overflow: hidden;
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: var(--font-body), -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 /* ─── Header ─────────────────────────────────────────────────────────────── */
@@ -18,7 +18,7 @@
   padding: 12px 14px 10px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
-  background: #f8f9fb;
+  background: var(--cs-sand);
 }
 
 .headerLeft { display: flex; align-items: center; gap: 8px; }
@@ -26,19 +26,21 @@
 .hdxLogo { height: 18px; width: auto; opacity: .85; }
 
 .title {
-  font-size: 11px; font-weight: 800;
-  letter-spacing: .4px; text-transform: uppercase;
+  font-family: var(--font-mono);
+  font-size: 10px; font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-eyebrow); text-transform: uppercase;
   color: var(--ink-soft);
 }
 
 .closeBtn {
-  width: 26px; height: 26px; border-radius: 6px;
+  width: 26px; height: 26px; border-radius: var(--radius);
   display: flex; align-items: center; justify-content: center;
   color: var(--ink-soft); font-size: 14px;
   background: transparent; border: none; cursor: pointer;
-  transition: background .12s;
+  transition: background var(--dur-fast) var(--ease-out);
 }
 .closeBtn:hover { background: var(--bg); color: var(--ink); }
+.closeBtn:focus-visible { outline: 2px solid var(--cs-ink); outline-offset: 1px; box-shadow: 0 0 0 3px var(--cs-yellow); }
 
 /* ─── Source tabs (HDX / EM-DAT) ─────────────────────────────────────────── */
 
@@ -52,19 +54,21 @@
 .sourceTab {
   flex: 1;
   padding: 8px 12px;
-  font-size: 11px; font-weight: 700;
-  letter-spacing: .3px; text-transform: uppercase;
+  font-family: var(--font-mono);
+  font-size: 10px; font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-label); text-transform: uppercase;
   color: var(--ink-soft);
   background: transparent; border: none;
   border-bottom: 2px solid transparent;
   cursor: pointer;
-  transition: color .12s, border-color .12s;
+  transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
   white-space: nowrap;
 }
 .sourceTab:hover { color: var(--ink); }
+.sourceTab:focus-visible { outline: 2px solid var(--cs-ink); outline-offset: -2px; }
 .sourceTabActive {
-  color: var(--cyan);
-  border-bottom-color: var(--cyan);
+  color: var(--ink);
+  border-bottom-color: var(--cs-ink);
 }
 
 /* ─── Download chip (for tabular resources like CSV) ─────────────────────── */
@@ -72,16 +76,18 @@
 .downloadChip {
   align-self: flex-start;
   display: inline-flex; align-items: center; gap: 5px;
-  font-size: 11px; font-weight: 600;
-  padding: 4px 10px; border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px; font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-label); text-transform: uppercase;
+  padding: 4px 10px; border-radius: var(--radius);
   background: var(--bg);
   border: 1.5px solid var(--border);
   color: var(--ink-mid);
   text-decoration: none;
-  transition: border-color .12s, color .12s;
+  transition: border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
   white-space: nowrap;
 }
-.downloadChip:hover { border-color: var(--ink-mid); color: var(--ink); }
+.downloadChip:hover { border-color: var(--cs-ink); color: var(--ink); }
 
 /* EM-DAT note */
 .emdatNote {
@@ -89,8 +95,8 @@
   line-height: 1.5;
   padding: 10px 2px 4px;
 }
-.emdatNote a { color: var(--cyan); text-decoration: none; }
-.emdatNote a:hover { text-decoration: underline; }
+.emdatNote a { color: var(--cs-ink); text-decoration: underline; text-decoration-color: var(--cs-yellow); }
+.emdatNote a:hover { text-decoration-thickness: 2px; }
 
 /* ─── Search ──────────────────────────────────────────────────────────────── */
 
@@ -104,28 +110,32 @@
   flex: 1;
   font-size: 12px; color: var(--ink);
   border: 1.5px solid var(--border);
-  border-radius: 7px; padding: 7px 10px;
+  border-radius: var(--radius); padding: 7px 10px;
   outline: none;
-  transition: border-color .15s;
+  transition: border-color var(--dur-fast) var(--ease-out);
   background: var(--white);
 }
 .searchInput:focus { border-color: var(--cyan); }
+.searchInput:focus-visible { outline: 2px solid var(--cs-yellow); outline-offset: 1px; }
 .searchInput::placeholder { color: var(--ink-soft); }
 
 .searchBtn {
-  font-size: 12px; font-weight: 700;
-  padding: 7px 14px; border-radius: 7px;
+  font-family: var(--font-mono);
+  font-size: 11px; font-weight: var(--fw-bold); letter-spacing: var(--ls-label); text-transform: uppercase;
+  padding: 7px 14px; border-radius: var(--radius);
   background: var(--ink); color: var(--white);
-  border: none; cursor: pointer;
+  border: 1px solid var(--cs-ink); cursor: pointer;
   white-space: nowrap;
-  transition: background .12s;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
   flex-shrink: 0;
 }
-.searchBtn:hover:not(:disabled) { background: var(--cyan); }
+.searchBtn:hover:not(:disabled) { background: var(--cyan); color: var(--cs-on-cyan); }
+.searchBtn:focus-visible { outline: 2px solid var(--cs-ink); outline-offset: 2px; box-shadow: 0 0 0 4px var(--cs-yellow); }
 .searchBtn:disabled { opacity: .5; cursor: default; }
 
 .scopeNote {
-  font-size: 10px; font-weight: 600;
+  font-family: var(--font-mono);
+  font-size: 9px; letter-spacing: var(--ls-label); text-transform: uppercase;
   color: var(--ink-soft);
   padding: 0 13px 8px;
   flex-shrink: 0;
@@ -153,8 +163,9 @@
 
 .errorState {
   padding: 16px;
-  font-size: 12px; color: #dc2626; line-height: 1.5;
-  background: #fef2f2; border-radius: 8px;
+  font-size: 12px; color: var(--magenta); line-height: 1.5;
+  background: rgba(255,29,255,.06); border-radius: var(--radius);
+  border: 1px solid var(--magenta);
   margin: 8px 0;
 }
 
@@ -165,8 +176,9 @@
 }
 
 .resultCount {
-  font-size: 10px; font-weight: 700;
-  letter-spacing: .5px; text-transform: uppercase;
+  font-family: var(--font-mono);
+  font-size: 9px; font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-label); text-transform: uppercase;
   color: var(--ink-soft);
   padding: 8px 2px 6px;
 }
@@ -175,13 +187,13 @@
 
 .dataset {
   border: 1.5px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius);
   padding: 10px 11px;
   margin-bottom: 8px;
   background: var(--white);
-  transition: border-color .12s;
+  transition: border-color var(--dur-fast) var(--ease-out);
 }
-.dataset:hover { border-color: #c0c8d8; }
+.dataset:hover { border-color: var(--cs-ink); }
 
 .dsHeader { margin-bottom: 3px; }
 
@@ -191,10 +203,11 @@
   display: block;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.dsTitle:hover { color: var(--cyan); }
+.dsTitle:hover { color: var(--ink); text-decoration: underline; text-decoration-color: var(--cs-yellow); text-decoration-thickness: 2px; }
 
 .dsLocation {
-  font-size: 10px; font-weight: 600;
+  font-family: var(--font-mono);
+  font-size: 9px; font-weight: var(--fw-bold); letter-spacing: var(--ls-label); text-transform: uppercase;
   color: var(--ink-soft);
   display: block; margin-top: 1px;
 }
@@ -223,9 +236,10 @@
 }
 
 .fmtBadge {
-  font-size: 9px; font-weight: 800; letter-spacing: .4px;
+  font-family: var(--font-mono);
+  font-size: 9px; font-weight: var(--fw-bold); letter-spacing: var(--ls-label);
   text-transform: uppercase;
-  padding: 2px 6px; border-radius: 4px;
+  padding: 2px 6px; border-radius: var(--radius);
   border: 1px solid;
   flex-shrink: 0;
 }
@@ -237,29 +251,34 @@
 }
 
 .resourceSize {
-  font-size: 10px; color: var(--ink-soft);
+  font-family: var(--font-mono);
+  font-size: 9px; letter-spacing: var(--ls-label); text-transform: uppercase;
+  color: var(--ink-soft);
   flex-shrink: 0;
 }
 
 .resourceError {
-  font-size: 10px; color: #dc2626;
-  background: #fef2f2; border-radius: 4px;
+  font-size: 10px; color: var(--magenta);
+  background: rgba(255,29,255,.06); border-radius: var(--radius);
+  border: 1px solid var(--magenta);
   padding: 3px 7px; line-height: 1.4;
 }
 
 .addBtn {
   align-self: flex-start;
-  font-size: 11px; font-weight: 700;
-  padding: 4px 10px; border-radius: 6px;
-  background: rgba(10,175,184,.1);
-  border: 1.5px solid rgba(10,175,184,.35);
-  color: #0AAFB8;
+  font-family: var(--font-mono);
+  font-size: 10px; font-weight: var(--fw-bold); letter-spacing: var(--ls-label); text-transform: uppercase;
+  padding: 4px 10px; border-radius: var(--radius);
+  background: rgba(0,252,250,.1);
+  border: 1.5px solid var(--cyan);
+  color: var(--ink);
   cursor: pointer;
   display: flex; align-items: center; gap: 5px;
-  transition: background .12s, border-color .12s;
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
   white-space: nowrap;
 }
-.addBtn:hover:not(:disabled) { background: rgba(10,175,184,.18); border-color: var(--cyan); }
+.addBtn:hover:not(:disabled) { background: var(--cyan); border-color: var(--cs-ink); }
+.addBtn:focus-visible { outline: 2px solid var(--cs-ink); outline-offset: 1px; box-shadow: 0 0 0 3px var(--cs-yellow); }
 .addBtn:disabled { opacity: .5; cursor: default; }
 
 /* ─── Spinners ────────────────────────────────────────────────────────────── */
@@ -274,7 +293,7 @@
 
 .spinnerSm {
   width: 10px; height: 10px; border-radius: 50%;
-  border: 1.5px solid rgba(10,175,184,.3);
+  border: 1.5px solid rgba(0,252,250,.3);
   border-top-color: var(--cyan);
   animation: spin .7s linear infinite;
   flex-shrink: 0;
@@ -286,10 +305,12 @@
 
 .footer {
   padding: 7px 13px;
-  font-size: 10px; color: var(--ink-soft);
+  font-family: var(--font-mono);
+  font-size: 9px; letter-spacing: var(--ls-label); text-transform: uppercase;
+  color: var(--ink-soft);
   border-top: 1px solid var(--border);
-  background: #f8f9fb;
+  background: var(--cs-sand);
   flex-shrink: 0;
 }
-.footer a { color: var(--cyan); text-decoration: none; }
-.footer a:hover { text-decoration: underline; }
+.footer a { color: var(--cs-ink); text-decoration: underline; text-decoration-color: var(--cs-yellow); }
+.footer a:hover { text-decoration-thickness: 2px; }

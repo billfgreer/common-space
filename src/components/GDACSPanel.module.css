@@ -3,14 +3,14 @@
 .panel {
   width: 340px;
   background: var(--white);
-  border: 1.5px solid var(--border);
-  border-radius: 14px;
+  border: 1px solid var(--cs-ink);
+  border-radius: var(--radius);
   display: flex;
   flex-direction: column;
-  box-shadow: 0 16px 48px rgba(0,0,0,.22), 0 2px 8px rgba(0,0,0,.1);
+  box-shadow: var(--shadow-float);
   z-index: 9000;
   overflow: hidden;
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: var(--font-body), -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 /* ─── Header ──────────────────────────────────────────────────────────────── */
@@ -20,23 +20,25 @@
   padding: 12px 14px 10px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
-  background: #f8f9fb;
+  background: var(--cs-sand);
 }
 .headerLeft { display: flex; align-items: center; gap: 8px; }
 .gdacsIcon  { font-size: 16px; line-height: 1; }
 .title {
-  font-size: 11px; font-weight: 800;
-  letter-spacing: .4px; text-transform: uppercase;
+  font-family: var(--font-mono);
+  font-size: 10px; font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-eyebrow); text-transform: uppercase;
   color: var(--ink-soft);
 }
 .closeBtn {
-  width: 26px; height: 26px; border-radius: 6px;
+  width: 26px; height: 26px; border-radius: var(--radius);
   display: flex; align-items: center; justify-content: center;
   color: var(--ink-soft); font-size: 14px;
   background: transparent; border: none; cursor: pointer;
-  transition: background .12s;
+  transition: background var(--dur-fast) var(--ease-out);
 }
 .closeBtn:hover { background: var(--bg); color: var(--ink); }
+.closeBtn:focus-visible { outline: 2px solid var(--cs-ink); outline-offset: 1px; box-shadow: 0 0 0 3px var(--cs-yellow); }
 
 /* ─── Filters ─────────────────────────────────────────────────────────────── */
 
@@ -52,8 +54,9 @@
 }
 
 .filterLabel {
-  font-size: 10px; font-weight: 700;
-  letter-spacing: .5px; text-transform: uppercase;
+  font-family: var(--font-mono);
+  font-size: 9px; font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-label); text-transform: uppercase;
   color: var(--ink-soft);
   width: 38px; flex-shrink: 0;
 }
@@ -63,18 +66,22 @@
 }
 
 .chip {
-  font-size: 10px; font-weight: 700;
-  padding: 3px 8px; border-radius: 5px;
+  font-family: var(--font-mono);
+  font-size: 10px; font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-label); text-transform: uppercase;
+  padding: 3px 8px; border-radius: var(--radius);
   border: 1.5px solid var(--border);
   color: var(--ink-mid); background: var(--white);
   cursor: pointer;
   display: flex; align-items: center; gap: 3px;
-  transition: border-color .12s, color .12s, background .12s;
+  transition: border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
   white-space: nowrap;
   line-height: 1.4;
 }
 .chip:hover          { border-color: var(--ink-mid); color: var(--ink); }
-.chipActive          { border-color: var(--cyan); color: var(--cyan); background: rgba(10,175,184,.07); }
+.chip:focus-visible  { outline: 2px solid var(--cs-ink); outline-offset: 1px; box-shadow: 0 0 0 3px var(--cs-yellow); }
+.chipActive          { border-color: var(--cs-ink); color: var(--cs-on-ink); background: var(--cs-ink); }
+/* GDACS alert-level colors (Red/Orange/Green) follow the international GDACS severity standard — preserved as-is */
 .chipRedActive       { border-color: #ef4444; color: #ef4444; background: rgba(239,68,68,.07); }
 .chipOrangeActive    { border-color: #f97316; color: #f97316; background: rgba(249,115,22,.07); }
 .chipGreenActive     { border-color: #22c55e; color: #22c55e; background: rgba(34,197,94,.07); }
@@ -108,8 +115,9 @@
 
 .errorState {
   padding: 16px;
-  font-size: 12px; color: #dc2626; line-height: 1.5;
-  background: #fef2f2; border-radius: 8px;
+  font-size: 12px; color: var(--magenta); line-height: 1.5;
+  background: rgba(255,29,255,.06); border-radius: var(--radius);
+  border: 1px solid var(--magenta);
   margin: 8px 0;
 }
 
@@ -120,8 +128,9 @@
 }
 
 .resultCount {
-  font-size: 10px; font-weight: 700;
-  letter-spacing: .5px; text-transform: uppercase;
+  font-family: var(--font-mono);
+  font-size: 9px; font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-label); text-transform: uppercase;
   color: var(--ink-soft);
   padding: 8px 2px 6px;
 }
@@ -130,13 +139,13 @@
 
 .eventCard {
   border: 1.5px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius);
   padding: 10px 11px;
   margin-bottom: 7px;
   background: var(--white);
-  transition: border-color .12s;
+  transition: border-color var(--dur-fast) var(--ease-out);
 }
-.eventCard:hover { border-color: #c0c8d8; }
+.eventCard:hover { border-color: var(--cs-ink); }
 
 .cardTop {
   display: flex; align-items: center; gap: 6px;
@@ -152,9 +161,11 @@
 }
 
 .country {
-  font-size: 10px; font-weight: 600; color: var(--ink-soft);
+  font-family: var(--font-mono);
+  font-size: 9px; font-weight: var(--fw-bold); letter-spacing: var(--ls-label); text-transform: uppercase;
+  color: var(--ink-soft);
   flex-shrink: 0;
-  background: var(--bg); border-radius: 4px;
+  background: var(--bg); border-radius: var(--radius);
   padding: 1px 6px; border: 1px solid var(--border);
   white-space: nowrap;
 }
@@ -178,22 +189,25 @@
 }
 
 .gdacsLink {
-  font-size: 10px; font-weight: 600;
+  font-family: var(--font-mono);
+  font-size: 9px; font-weight: var(--fw-bold); letter-spacing: var(--ls-label); text-transform: uppercase;
   color: var(--ink-soft); text-decoration: none;
-  transition: color .12s;
+  transition: color var(--dur-fast) var(--ease-out);
 }
-.gdacsLink:hover { color: var(--cyan); }
+.gdacsLink:hover { color: var(--cs-ink); text-decoration: underline; text-decoration-color: var(--cs-yellow); }
 
 .addBtn {
-  font-size: 11px; font-weight: 700;
-  padding: 4px 10px; border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px; font-weight: var(--fw-bold); letter-spacing: var(--ls-label); text-transform: uppercase;
+  padding: 4px 10px; border-radius: var(--radius);
   background: transparent; border: 1.5px solid;
   cursor: pointer;
   display: flex; align-items: center; gap: 4px;
-  transition: background .12s;
+  transition: background var(--dur-fast) var(--ease-out);
   white-space: nowrap;
 }
 .addBtn:hover { background: rgba(0,0,0,.04); }
+.addBtn:focus-visible { outline: 2px solid var(--cs-ink); outline-offset: 1px; box-shadow: 0 0 0 3px var(--cs-yellow); }
 
 /* ─── Spinner ─────────────────────────────────────────────────────────────── */
 
@@ -210,10 +224,12 @@
 
 .footer {
   padding: 7px 13px;
-  font-size: 10px; color: var(--ink-soft);
+  font-family: var(--font-mono);
+  font-size: 9px; letter-spacing: var(--ls-label); text-transform: uppercase;
+  color: var(--ink-soft);
   border-top: 1px solid var(--border);
-  background: #f8f9fb;
+  background: var(--cs-sand);
   flex-shrink: 0;
 }
-.footer a { color: var(--cyan); text-decoration: none; }
-.footer a:hover { text-decoration: underline; }
+.footer a { color: var(--cs-ink); text-decoration: underline; text-decoration-color: var(--cs-yellow); }
+.footer a:hover { text-decoration-thickness: 2px; }

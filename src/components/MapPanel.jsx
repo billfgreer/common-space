@@ -249,14 +249,14 @@ export default function MapPanel({
       map.addLayer({
         id: 'fp-fill', type: 'fill', source: SOURCE_ID,
         paint: {
-          'fill-color': ['case', ['==', ['get', 'timing'], 'before'], 'rgba(232,184,32,.15)', 'rgba(10,175,184,.15)'],
+          'fill-color': ['case', ['==', ['get', 'timing'], 'before'], 'rgba(255,255,0,.15)', 'rgba(0,252,250,.15)'],
           'fill-opacity': 1,
         },
       })
       map.addLayer({
         id: 'fp-line', type: 'line', source: SOURCE_ID,
         paint: {
-          'line-color': ['case', ['==', ['get', 'timing'], 'before'], '#E8B820', '#0AAFB8'],
+          'line-color': ['case', ['==', ['get', 'timing'], 'before'], '#FFFF00', '#00FCFA'],
           'line-width': 1.5, 'line-opacity': .8,
         },
       })
@@ -268,7 +268,7 @@ export default function MapPanel({
       map.addLayer({
         id: 'fp-selected', type: 'fill', source: SOURCE_ID,
         filter: ['in', 'id', ''],
-        paint: { 'fill-color': 'rgba(200,57,138,.25)', 'fill-opacity': 1 },
+        paint: { 'fill-color': 'rgba(255,29,255,.25)', 'fill-opacity': 1 },
       })
 
       map.on('click', 'fp-fill', e => {
@@ -1110,10 +1110,10 @@ function buildPopupHtml(props) {
       seen.add(key)
       let display = String(val)
       if (key === 'phone' || key === 'contact:phone' || key === 'contact:mobile') {
-        display = `<a href="tel:${display}" style="color:#0AAFB8">${display}</a>`
+        display = `<a href="tel:${display}" style="color:#000000;text-decoration:underline;text-decoration-color:#FFFF00;text-decoration-thickness:2px">${display}</a>`
       } else if (key === 'website' || key === 'contact:website') {
         const href = display.startsWith('http') ? display : `https://${display}`
-        display = `<a href="${href}" target="_blank" rel="noopener" style="color:#0AAFB8">${href.replace(/^https?:\/\//, '').replace(/\/$/, '')}</a>`
+        display = `<a href="${href}" target="_blank" rel="noopener" style="color:#000000;text-decoration:underline;text-decoration-color:#FFFF00;text-decoration-thickness:2px">${href.replace(/^https?:\/\//, '').replace(/\/$/, '')}</a>`
       }
       rows.push([OSM_LABELS[key] || key, display])
     }
@@ -1131,7 +1131,7 @@ function buildPopupHtml(props) {
       const display = String(v)
       // Auto-link URLs
       if (display.startsWith('http')) {
-        rows.push([k, `<a href="${display}" target="_blank" rel="noopener" style="color:#0AAFB8">${display}</a>`])
+        rows.push([k, `<a href="${display}" target="_blank" rel="noopener" style="color:#000000;text-decoration:underline;text-decoration-color:#FFFF00;text-decoration-thickness:2px">${display}</a>`])
       } else {
         rows.push([k, display])
       }

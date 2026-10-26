@@ -1,0 +1,38 @@
+:root {
+  /* ---- Families ---- */
+  --font-display: "Archivo", "Helvetica Neue", Arial, sans-serif; /* heavy grotesque */
+  --font-body:    "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --font-mono:    "Space Mono", ui-monospace, "SFMono-Regular", monospace; /* readout / labels */
+
+  /* ---- Weights ---- */
+  --fw-regular: 400;
+  --fw-medium:  500;
+  --fw-semibold:600;
+  --fw-bold:    700;
+  --fw-heavy:   800;
+  --fw-black:   900;
+
+  /* ---- Type scale (px) ---- */
+  --fs-display: 84px;  /* Archivo 900, uppercase, -.02em */
+  --fs-h1:      56px;
+  --fs-h2:      34px;  /* Archivo 800, uppercase */
+  --fs-h3:      24px;
+  --fs-subhead: 18px;  /* Archivo 700 */
+  --fs-body:    15px;  /* Archivo 400 */
+  --fs-small:   13px;
+  --fs-label:   11px;  /* Space Mono, .16em, uppercase */
+  --fs-micro:   10px;
+
+  /* ---- Leading ---- */
+  --lh-tight:   0.92;
+  --lh-snug:    1.0;
+  --lh-heading: 1.1;
+  --lh-body:    1.6;
+  --lh-loose:   1.85;
+
+  /* ---- Tracking ---- */
+  --ls-display: -0.02em;
+  --ls-heading: -0.01em;
+  --ls-label:   0.16em;
+  --ls-eyebrow: 0.22em;
+}

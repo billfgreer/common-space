@@ -1,16 +1,19 @@
+@import "../design-system/styles.css";
+@import "../design-system/base.css";
+
 /* ── Variables ──────────────────────────────────────── */
 :root {
-  --cyan:     #00C8D7;
-  --magenta:  #FF1870;
-  --yellow:   #FFE000;
-  --black:    #0A0A0A;
-  --ink:      #111111;
-  --ink-mid:  #555555;
-  --ink-soft: #999999;
-  --bg:       #F7F7F7;
-  --white:    #FFFFFF;
-  --border:   #E4E4E4;
-  --radius:   10px;
+  --cyan:     var(--cs-cyan);
+  --magenta:  var(--cs-magenta);
+  --yellow:   var(--cs-yellow);
+  --black:    var(--cs-ink);
+  --ink:      var(--cs-ink);
+  --ink-mid:  var(--cs-mute);
+  --ink-soft: var(--cs-mute-soft);
+  --bg:       var(--cs-sand);
+  --white:    var(--cs-white);
+  --border:   var(--cs-line-soft);
+  --radius:   0px;
   --header-h: 56px;
 }
 
@@ -18,7 +21,7 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body, #root { height: 100%; }
 body {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-body), system-ui, -apple-system, sans-serif;
   background: var(--white);
   color: var(--ink);
   -webkit-font-smoothing: antialiased;
@@ -30,40 +33,52 @@ a { text-decoration: none; }
 /* ── Shared buttons ─────────────────────────────────── */
 .btn-primary {
   display: inline-flex; align-items: center; gap: 7px;
-  background: var(--cyan); color: var(--ink);
-  font-size: 14px; font-weight: 700;
-  padding: 10px 20px; border-radius: 8px;
-  transition: filter .15s, transform .1s;
+  background: var(--cyan); color: var(--cs-on-cyan);
+  font-family: var(--font-mono);
+  font-size: var(--fs-label); font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-label); text-transform: uppercase;
+  padding: 10px 20px; border-radius: var(--radius);
+  border: 1px solid var(--cs-ink);
+  transition: background var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
 }
-.btn-primary:hover  { filter: brightness(1.08); }
-.btn-primary:active { transform: scale(.98); }
+.btn-primary:hover  { background: var(--cs-ink); color: var(--cs-on-ink); }
+.btn-primary:active { transform: translateY(1px); }
+.btn-primary:focus-visible { outline: 2px solid var(--cs-ink); outline-offset: 2px; box-shadow: 0 0 0 4px var(--cs-yellow); }
 
 .btn-ghost {
   display: inline-flex; align-items: center; gap: 7px;
   background: rgba(255,255,255,.1); color: rgba(255,255,255,.9);
-  font-size: 13px; font-weight: 500;
-  padding: 8px 14px; border-radius: 8px;
-  transition: background .15s;
+  font-family: var(--font-mono);
+  font-size: 12px; font-weight: var(--fw-medium);
+  letter-spacing: var(--ls-label); text-transform: uppercase;
+  padding: 8px 14px; border-radius: var(--radius);
+  transition: background var(--dur-fast) var(--ease-out);
 }
 .btn-ghost:hover { background: rgba(255,255,255,.18); }
+.btn-ghost:focus-visible { outline: 2px solid var(--cs-yellow); outline-offset: 2px; }
 
 .btn-back {
   display: flex; align-items: center; gap: 6px;
-  font-size: 13px; color: rgba(255,255,255,.6);
-  padding: 6px 10px; border-radius: 6px;
-  transition: background .15s, color .15s;
+  font-family: var(--font-mono);
+  font-size: 12px; letter-spacing: var(--ls-label); text-transform: uppercase;
+  color: rgba(255,255,255,.6);
+  padding: 6px 10px; border-radius: var(--radius);
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
 }
 .btn-back:hover { background: rgba(255,255,255,.1); color: var(--white); }
 
 .btn-outline {
   display: inline-flex; align-items: center; gap: 7px;
   background: transparent; color: var(--white);
-  font-size: 13px; font-weight: 500;
-  padding: 7px 14px; border-radius: 8px;
+  font-family: var(--font-mono);
+  font-size: 12px; font-weight: var(--fw-medium);
+  letter-spacing: var(--ls-label); text-transform: uppercase;
+  padding: 7px 14px; border-radius: var(--radius);
   border: 1.5px solid rgba(255,255,255,.25);
-  transition: border-color .15s, background .15s;
+  transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
 }
-.btn-outline:hover { border-color: var(--cyan); background: rgba(0,200,215,.1); }
+.btn-outline:hover { border-color: var(--cyan); background: rgba(0,252,250,.12); }
+.btn-outline:focus-visible { outline: 2px solid var(--cs-yellow); outline-offset: 2px; }
 
 /* ── MapLibre overrides ─────────────────────────────── */
 .maplibregl-ctrl-logo  { display: none !important; }
@@ -78,6 +93,9 @@ a { text-decoration: none; }
 .empty-state {
   padding: 48px 24px;
   text-align: center;
+  font-family: var(--font-mono);
   font-size: 13px;
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
   color: var(--ink-soft);
 }

@@ -1,0 +1,46 @@
+:root {
+  /* ---- Common Space brand hexes (canonical) ---- */
+  --cs-ink:        #000000; /* black — does 30% of the work */
+  --cs-cyan:       #00FCFA; /* the live signal */
+  --cs-magenta:    #FF1DFF; /* alert / accent */
+  --cs-yellow:     #FFFF00; /* dedicated UI highlight */
+  --cs-white:      #FFFFFF;
+
+  /* on-color foregrounds — all three CMY plates are bright: use black */
+  --cs-on-ink:     #FFFFFF;
+  --cs-on-cyan:    #000000;
+  --cs-on-magenta: #000000;
+  --cs-on-yellow:  #000000;
+
+  /* ---- Neutrals (pure grayscale) ---- */
+  --cs-paper:      #FFFFFF; /* primary surface — does 60% of the work */
+  --cs-sand:       #F2F2F2; /* page / recessed surface */
+  --cs-line:       #D4D4D4; /* hairlines, dividers */
+  --cs-line-soft:  #E2E2E2; /* lighter borders */
+  --cs-line-faint: #EFEFEF; /* faintest rule */
+  --cs-mute:       #666666; /* muted / caption text */
+  --cs-mute-soft:  #999999; /* eyebrow / placeholder text */
+  --cs-body:       #333333; /* long-form body text */
+
+  /* ---- Semantic aliases ---- */
+  --surface-page:    var(--cs-sand);
+  --surface-card:    var(--cs-paper);
+  --surface-bright:  #FFFFFF;
+  --surface-invert:  var(--cs-ink);
+
+  --text-strong:     var(--cs-ink);
+  --text-body:       var(--cs-body);
+  --text-muted:      var(--cs-mute);
+  --text-eyebrow:    var(--cs-mute-soft);
+  --text-invert:     var(--cs-on-ink);
+
+  --border-default:  var(--cs-line-soft);
+  --border-strong:   var(--cs-ink);
+
+  --signal:          var(--cs-cyan);
+  --highlight:       var(--cs-yellow);
+  --alert:           var(--cs-magenta);
+
+  --selection-bg:    var(--cs-yellow);
+  --selection-fg:    var(--cs-ink);
+}

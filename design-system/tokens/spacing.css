@@ -1,0 +1,27 @@
+:root {
+  /* ---- Spacing scale ---- */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  24px;
+  --space-6:  32px;
+  --space-7:  48px;
+  --space-8:  64px;
+  --space-9:  96px;
+
+  /* ---- Section padding ---- */
+  --pad-section: 64px;
+  --pad-card:    26px;
+  --gap-grid:    24px;
+
+  /* ---- Borders / radii ---- */
+  --bw-hair:   1px;
+  --bw-rule:   2px;
+  --bw-accent: 4px;
+  --radius:    0px;       /* the system is square — corners stay hard */
+  --radius-pill: 999px;   /* only for the circular CTA + signal dots */
+
+  /* ---- Halftone dot grid (used in imagery treatments) ---- */
+  --halftone-size: 12px;
+}

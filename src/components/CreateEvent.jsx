@@ -80,7 +80,7 @@ function Step1({ data, onChange }) {
       </div>
 
       <div className={styles.formGroup}>
-        <label className={styles.label}>Event Name <span style={{ color: '#ef4444' }}>*</span></label>
+        <label className={styles.label}>Event Name <span style={{ color: 'var(--magenta)' }}>*</span></label>
         <input
           className={styles.input}
           placeholder="e.g. Morocco Earthquake 2023"
@@ -90,7 +90,7 @@ function Step1({ data, onChange }) {
       </div>
 
       <div className={styles.formGroup}>
-        <label className={styles.label}>Location <span style={{ color: '#ef4444' }}>*</span></label>
+        <label className={styles.label}>Location <span style={{ color: 'var(--magenta)' }}>*</span></label>
         <input
           className={styles.input}
           placeholder="e.g. Marrakech, Morocco"
@@ -100,7 +100,7 @@ function Step1({ data, onChange }) {
         />
         {geocoding && (
           <div className={styles.geocodeStatus}>
-            <span className={styles.geocodeDot} style={{ background: '#f59e0b' }} />
+            <span className={styles.geocodeDot} style={{ background: 'var(--yellow)' }} />
             Locating…
           </div>
         )}
